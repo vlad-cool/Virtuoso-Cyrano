@@ -1,6 +1,7 @@
 [package]
-name = "Virtuoso-Cyrano"
+name = "Virtuoso-l"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+serial = "0.4.0"

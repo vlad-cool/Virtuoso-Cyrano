@@ -38,7 +38,7 @@ impl LegacyBackend {
         loop {
             match uart_data_rx.recv() {
                 Err(RecvError) => {}
-                Ok(msg) => println!("{:?}", msg),
+                Ok(msg) => println!("{}", msg),
             }
             
         }
@@ -70,7 +70,7 @@ struct UartMessage {
     timer_sound: bool,
     score_left: u8,
     score_right: u8,
-    period: u8,
+    period: Option<u8>,
 
     yellow_card_left: u8,
     yellow_card_right: u8,
@@ -101,7 +101,7 @@ impl UartMessage {
             dec_seconds: src[2] & 0b00001111,
             seconds: src[3] & 0b00001111,
 
-            period: src[6] & 0b00001111,
+            period: if 0 < src[6] & 0b00001111 && src[6] & 0b00001111 < 10 {Some(src[6] & 0b00001111)} else {None},
 
             yellow_card_left: src[7] >> 2 & 0b00000011,
             yellow_card_right: src[7] >> 0 & 0b00000011,
@@ -146,5 +146,53 @@ fn uart_handler(tx: &mpsc::Sender<UartMessage>) {
                 }
             }
         }
+    }
+}
+
+impl std::fmt::Display for UartMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, 
+"UartMessage {{ 
+    yellow_red:        {}
+    white_red:         {} 
+    red:               {} 
+    yellow_green:      {} 
+    white_green:       {} 
+    green:             {} 
+    apparel_sound:     {} 
+    symbol:            {} 
+    on_timer:          {} 
+    minutes:           {} 
+    dec_seconds:       {} 
+    seconds:           {} 
+    timer_sound:       {} 
+    score_left:        {} 
+    score_right:       {} 
+    period:            {} 
+    yellow_card_left:  {} 
+    yellow_card_right: {} 
+}}", 
+        self.yellow_red,
+        self.white_red,
+        self.red,
+        self.yellow_green,
+        self.white_green,
+        self.green,
+        self.apparel_sound,
+        self.symbol,
+        self.on_timer,
+        self.minutes,
+        self.dec_seconds,
+        self.seconds,
+        self.timer_sound,
+        self.score_left,
+        self.score_right,
+        match self.period {
+            Some(val) => val,
+            None => 255,
+        },
+        self.yellow_card_left,
+        self.yellow_card_right,
+    )
     }
 }
