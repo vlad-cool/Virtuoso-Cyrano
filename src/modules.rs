@@ -1,24 +1,16 @@
-use std::sync::{mpsc::{Receiver, Sender}};
+use crate::match_info::{MatchInfo, Priority, Weapon};
 
 pub enum Modules {
     CyranoServer,
-    BackendV1,
+    LegacyBackend,
     SlintFrontend,
+    TextFrontend,
     VideoRecorder,
-}
-
-pub enum MatchInfoMessage {
-    LeftScoreChanged(u32),
-    RightScoreChanged(u32),
-    PeriodChanged(u32),
-    TimerChanged(u32),
-    PassiveIndicatorChanged(u32),
-    PassiveTimerChanged(u32),
 }
 
 pub enum MessageType {
     Error(String),
-    MatchInfoChanged(MatchInfoMessage),    
+    MatchInfoChanged(MatchInfo),
 }
 
 pub trait ModuleOperations {
