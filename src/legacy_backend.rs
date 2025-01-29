@@ -1,5 +1,6 @@
 use serial::{self, SerialPort};
 use std::sync::mpsc::RecvError;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use std::{io::Read, sync::mpsc};
@@ -11,44 +12,49 @@ pub struct LegacyBackend {
     tx: mpsc::Sender<modules::Message>,
     rx: mpsc::Receiver<modules::Message>,
 
-    match_info: match_info::MatchInfo,
+    // match_info: match_info::MatchInfo,
+    match_info: Mutex::<match_info::MatchInfo>,
 }
 
 impl LegacyBackend {
     pub const MODULE_TYPE: modules::Modules = modules::Modules::LegacyBackend;
 
-    pub fn new(tx: mpsc::Sender<modules::Message>, rx: mpsc::Receiver<modules::Message>) -> Self {
+    pub fn new(tx: mpsc::Sender<modules::Message>, rx: mpsc::Receiver<modules::Message>, match_info: Mutex::<match_info::MatchInfo>) -> Self {
         Self {
             tx,
             rx,
-
-            match_info: match_info::MatchInfo::new(),
+            match_info,
         }
     }
 
     pub fn run(&mut self) {
-        let (uart_data_tx, uart_data_rx) = mpsc::channel::<UartMessage>();
+        let (uart_data_tx, uart_data_rx) = mpsc::channel::<UartData>();
+        let (pins_data_tx, pins_data_rx) = mpsc::channel::<PinsData>();
 
-        let uart_handler_thread = thread::spawn(move || {
+        thread::spawn(move || {
             uart_handler(&uart_data_tx);
         });
 
-        println!("ABOBA");
+        thread::spawn(move || {
+            pins_handler(&pins_data_tx);
+        });
 
         loop {
             match uart_data_rx.recv() {
                 Err(RecvError) => {}
                 Ok(msg) => println!("{}", msg),
             }
+            match pins_data_rx.recv() {
+                Err(RecvError) => {}
+                Ok(msg) => println!("{}", msg),
+            }
             
         }
-
-        uart_handler_thread.join().unwrap_err();
     }
 }
 
 #[derive(Debug)]
-struct UartMessage {
+struct UartData {
     yellow_red: bool,
     white_red: bool,
     red: bool,
@@ -76,9 +82,9 @@ struct UartMessage {
     yellow_card_right: u8,
 }
 
-impl UartMessage {
+impl UartData {
     fn from_8bytes(src: [u8; 8]) -> Self {
-        UartMessage {
+        UartData {
             yellow_red: src[0] >> 4 & 1 == 1,
             red: src[0] >> 3 & 1 == 1,
             white_green: src[0] >> 2 & 1 == 1,
@@ -109,7 +115,7 @@ impl UartMessage {
     }
 }
 
-fn uart_handler(tx: &mpsc::Sender<UartMessage>) {
+fn uart_handler(tx: &mpsc::Sender<UartData>) {
     let mut port = serial::open("/dev/ttyS2").unwrap();
 
     let settings = serial::PortSettings {
@@ -141,7 +147,7 @@ fn uart_handler(tx: &mpsc::Sender<UartMessage>) {
                     if ind == 8 {
                         ind = 0;
 
-                        tx.send(UartMessage::from_8bytes(buf)).unwrap();
+                        tx.send(UartData::from_8bytes(buf)).unwrap();
                     }
                 }
             }
@@ -149,7 +155,7 @@ fn uart_handler(tx: &mpsc::Sender<UartMessage>) {
     }
 }
 
-impl std::fmt::Display for UartMessage {
+impl std::fmt::Display for UartData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, 
 "UartMessage {{ 
@@ -194,5 +200,45 @@ impl std::fmt::Display for UartMessage {
         self.yellow_card_left,
         self.yellow_card_right,
     )
+    }
+}
+
+struct PinsData {
+    wireless: bool, // pin 7
+    recording: bool, // pin 18
+    weapon: u8, // pin 32 * 2 + pin 36
+    weapon_select_btn: bool, // pin 37
+}
+
+impl PartialEq for PinsData {
+    fn eq(&self, other: &Self) -> bool {
+        self.wireless == other.wireless &&
+        self.recording == other.recording &&
+        self.weapon == other.weapon &&
+        self.weapon_select_btn == other.weapon_select_btn
+    }
+}
+
+impl std::fmt::Display for PinsData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, 
+"Pins {{ 
+    wireless:          {}
+    recording:         {} 
+    weapon:            {} 
+    weapon_select_btn: {} 
+}}", 
+        self.wireless,
+        self.recording,
+        self.weapon,
+        self.weapon_select_btn,
+    )
+    }
+}
+
+fn pins_handler(tx: &mpsc::Sender<PinsData>) {
+    loop {
+        
+        thread::sleep(Duration::from_millis(10));
     }
 }
