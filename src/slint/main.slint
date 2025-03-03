@@ -1,0 +1,163 @@
+import { LineEdit, Button, ComboBox, GridBox } from "std-widgets.slint";
+
+import "../../assets/AGENCYB.ttf";
+
+export struct TextProperties {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    font_size: int,
+}
+
+export struct RectangleProperties {
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    radius: int,
+}
+
+export struct Layout  {
+    background: RectangleProperties,
+    score_l_l: TextProperties,
+    score_l_r: TextProperties,
+    score_r_l: TextProperties,
+    score_r_r: TextProperties,
+    epee: TextProperties,
+    sabre: TextProperties,
+    fleuret: TextProperties,
+    auto_score_status: TextProperties,
+    auto_timer_status: TextProperties,
+    prioriry_l_cap: TextProperties,
+    priority_l_text: TextProperties,
+    priority_r_cap: TextProperties,
+    priority_r_text: TextProperties,
+    caution_l_rect: RectangleProperties,
+    caution_l_text: TextProperties,
+    penalty_l_rect: RectangleProperties,
+    penalty_l_text: TextProperties,
+    passive_l_bot_rect: RectangleProperties,
+    passive_l_bot_text: TextProperties,
+    passice_l_top_rect: RectangleProperties,
+    passice_l_top_text: TextProperties,
+    caution_r_rect: RectangleProperties,
+    caution_r_text: TextProperties,
+    penalty_r_rect: RectangleProperties,
+    penalty_r_text: TextProperties,
+    passive_r_bot_rect: RectangleProperties,
+    passive_r_bot_text: TextProperties,
+    passive_r_top_rect: RectangleProperties,
+    passive_r_top_text: TextProperties,
+    period: TextProperties,
+    passive_counter_dec: TextProperties,
+    passive_counter_sec: TextProperties,
+}
+
+export global Palette {
+    out property <brush> background: #00f0f0;
+    out property <brush> score_l:    #ff0000;
+    out property <brush> score_r:    #00ff00;
+    out property <brush> period:     #0000ff;
+}
+
+export component Virtuoso inherits Window {
+    in property <Layout> layout;
+
+    in property <int> score_l;
+    in property <int> score_r;
+    in property <int> timer;
+    in property <int> period;
+
+    in property <int> font_sz;
+
+    default-font-family: "Agency FB";
+    width: 1px * layout.background.width;
+    height: 1px * layout.background.height;
+    background: Palette.background;
+
+    // Text {
+    //     x: 0px;
+    //     y: 0px;
+    //     width: 1920px;
+    //     height: 480px;
+    //     font_size: 1000px;
+    //     text: "AAAAA";
+
+    //     horizontal-alignment: center;
+    //     vertical-alignment: center;
+    //     color: Palette.score_l;
+    // }
+
+    // timer := Timer {
+    //     interval: 1s;
+    //     running: true;
+    //     // triggered() => {
+    //     //     root.set_score_l(value);
+    //     //     value += 1;
+    //     // }
+    // }
+
+    Text {
+        x: 1px * layout.score-l-l.x;
+        y: 1px * layout.score-l-l.y;
+        width: 1px * layout.score-l-l.width;
+        height: 1px * layout.score-l-l.height;
+
+        font-size: 1px * layout.score-l-l.font_size;
+        text: score_l > 10 ? Math.floor(score_l / 10) : Math.mod(score_l, 10);
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.score_l;
+    }
+
+    Text {
+        x: 1px * layout.score-l-r.x;
+        y: 1px * layout.score-l-r.y;
+        width: 1px * layout.score-l-r.width;
+        height: 1px * layout.score-l-r.height;
+        font-size: 1px * layout.score-l-r.font_size;
+        text: score_l > 10 ? Math.mod(score_l, 10) : " ";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.score_l;
+    }
+
+    Text {
+        x: 1px * layout.score-r-l.x;
+        y: 1px * layout.score-r-l.y;
+        width: 1px * layout.score-r-l.width;
+        height: 1px * layout.score-r-l.height;
+        font-size: 1px * layout.score-r-l.font_size;
+        // text: score_r > 10 ? Math.floor(score_r / 10) : " ";
+        text: "-";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.score_r;
+    }
+
+    Text {
+        x: 1px * layout.score-r-r.x;
+        y: 1px * layout.score-r-r.y;
+        width: 1px * layout.score-r-r.width;
+        height: 1px * layout.score-r-r.height;
+        font-size: 1px * layout.score-r-r.font_size;
+        // text: scor Math.mod(score_r, 10);
+        text: "#";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.score_r;
+    }
+
+    Text {
+        x: 1px * layout.period.x;
+        y: 1px * layout.period.y;
+        width: 1px * layout.period.width;
+        height: 1px * layout.period.height;
+        font-size: 1px * layout.period.font_size;
+        text: period;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.period;
+    }
+}

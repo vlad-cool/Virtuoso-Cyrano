@@ -2,6 +2,7 @@ use crate::match_info::{MatchInfo, Priority, Weapon};
 
 pub enum Modules {
     CyranoServer,
+    ConsoleBackend,
     LegacyBackend,
     SlintFrontend,
     TextFrontend,

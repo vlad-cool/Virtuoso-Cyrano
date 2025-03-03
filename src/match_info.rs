@@ -20,6 +20,8 @@ pub struct MatchInfo {
     pub priority: Priority,
     pub passive_indicator: u32,
     pub passive_counter: u32,
+
+    pub last_cyrano_request: Option<std::time::Instant>,
 }
 
 impl MatchInfo {
@@ -33,6 +35,8 @@ impl MatchInfo {
             priority: Priority::None,
             passive_indicator: 0,
             passive_counter: 60,
+
+            last_cyrano_request: None,
         }
     }
 }
