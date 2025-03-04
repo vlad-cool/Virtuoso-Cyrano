@@ -136,6 +136,24 @@ export component Virtuoso inherits Window {
     height: 1px * layout.background.height;
     background: Palette.background;
 
+    property <[{name: string, layout: TextProperties, index: int}]> weapons: [
+        { name: "epee", layout: layout.epee, index: 1 },
+        { name: "sabre", layout: layout.sabre, index: 2 },
+        { name: "fleuret", layout: layout.fleuret, index: 3 }
+    ];
+
+    for weapon in weapons: Text {
+        x: 1px * weapon.layout.x;
+        y: 1px * weapon.layout.y;
+        width: 1px * weapon.layout.width;
+        height: 1px * weapon.layout.height;
+        font-size: 1px * weapon.layout.font_size;
+        text: weapon.name;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: root.weapon == weapon.index ? Palette.weapon_text_light : Palette.weapon_text_dark;
+    }
+
     Text {
         x: 1px * layout.score-l-l.x;
         y: 1px * layout.score-l-l.y;

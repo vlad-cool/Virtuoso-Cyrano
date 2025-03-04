@@ -24,6 +24,8 @@ enum Field {
     RightScore,
     Time,
     Period,
+
+    Weapon,
     
     LeftWhiteLed,
     LeftColorLed,
@@ -50,6 +52,8 @@ impl std::fmt::Display for Field {
             Field::RightScore => write!(f, "Right Score"),
             Field::Time => write!(f, "Time"),
             Field::Period => write!(f, "Period"),
+
+            Field::Weapon => write!(f, "Weapon"),
 
             Field::LeftWhiteLed => write!(f, "Left White Led"),
             Field::LeftColorLed => write!(f, "Left Color Led"),
@@ -84,6 +88,8 @@ fn parse_field(input: &str) -> Field {
         "rightscore" => Field::RightScore,
         "time" => Field::Time,
         "period" => Field::Period,
+
+        "weapon" => Field::Weapon,
 
         "leftwhiteled" => Field::LeftWhiteLed,
         "leftcolorled" => Field::LeftColorLed,
@@ -160,6 +166,13 @@ impl ConsoleBackend {
                         Field::RightScore => match_info_data.right_score = value,
                         Field::Time => match_info_data.timer = value,
                         Field::Period => match_info_data.period = value,
+
+                        Field::Weapon => match_info_data.weapon = match value {
+                            1 => match_info::Weapon::Epee,
+                            2 => match_info::Weapon::Sabre,
+                            3 => match_info::Weapon::Fleuret,
+                            _ => match_info::Weapon::Unknown,
+                        },
                         
                         Field::LeftColorLed => match_info_data.left_red_led_on = value > 0,
                         Field::LeftWhiteLed => match_info_data.left_white_led_on = value > 0,
@@ -187,6 +200,8 @@ impl ConsoleBackend {
                         Field::RightScore => println!("{}", match_info_data.right_score),
                         Field::Time => println!("{}", match_info_data.timer),
                         Field::Period => println!("{}", match_info_data.period),
+
+                        Field::Weapon => println!("{}", match_info_data.weapon),
                         
                         Field::LeftColorLed => println!("{}", match_info_data.left_red_led_on),
                         Field::LeftWhiteLed => println!("{}", match_info_data.left_white_led_on),

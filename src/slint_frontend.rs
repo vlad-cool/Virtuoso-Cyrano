@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::sync::mpsc;
 
 use crate::match_info;
+use crate::match_info::Weapon;
 use crate::modules;
 
 use crate::layouts::*;
@@ -21,6 +22,15 @@ fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
     app.set_right_score(match_info_data.right_score as i32);
     app.set_timer(match_info_data.timer as i32);
     app.set_period(match_info_data.period as i32);
+
+    app.set_weapon(
+        match match_info_data.weapon {
+            Weapon::Unknown => 0,
+            Weapon::Epee => 1,
+            Weapon::Sabre => 2,
+            Weapon::Fleuret => 3,
+        }
+    );
     
     app.set_left_color_led_on(match_info_data.left_red_led_on);
     app.set_left_white_led_on(match_info_data.left_white_led_on);

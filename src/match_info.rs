@@ -11,6 +11,18 @@ pub enum Weapon {
     Fleuret,
 }
 
+
+impl std::fmt::Display for Weapon {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Weapon::Unknown => write!(f, "Unknown"),
+            Weapon::Epee => write!(f, "Epee"),
+            Weapon::Sabre => write!(f, "Sabre"),
+            Weapon::Fleuret => write!(f, "Fleuret"),
+        }
+    }
+}
+
 pub struct MatchInfo {
     pub weapon: Weapon,
     pub left_score: u32,
@@ -45,7 +57,7 @@ pub struct MatchInfo {
 impl MatchInfo {
     pub fn new() -> Self {
         Self {
-            weapon: Weapon::Unknown,
+            weapon: Weapon::Epee,
             left_score: 0,
             right_score: 0,
             timer: 300,
