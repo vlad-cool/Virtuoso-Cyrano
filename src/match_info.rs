@@ -4,13 +4,22 @@ pub enum Priority {
     Right,
 }
 
+impl std::fmt::Display for Priority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Priority::Left => write!(f, "Left"),
+            Priority::None => write!(f, "None"),
+            Priority::Right => write!(f, "Right"),
+        }
+    }
+}
+
 pub enum Weapon {
     Unknown,
     Epee,
     Sabre,
     Fleuret,
 }
-
 
 impl std::fmt::Display for Weapon {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -68,7 +77,7 @@ impl MatchInfo {
 
             auto_score_on: false,
             auto_timer_on: false,
-        
+
             left_red_led_on: false,
             left_white_led_on: false,
             right_green_led_on: false,
@@ -83,7 +92,7 @@ impl MatchInfo {
             left_pcard_top: false,
             right_pcard_bot: false,
             right_pcard_top: false,
-        
+
             last_cyrano_request: None,
         }
     }

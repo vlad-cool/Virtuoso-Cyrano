@@ -39,8 +39,10 @@
         "dark": "#222222"
     },
     "priority": {
-        "left": "#e31e24",
-        "right": "#009846",
+        "red": "#e31e24",
+        "dark_red": "#2d0607",
+        "green": "#009846",
+        "dark_green": "#001e0e",
         "text_light": "#e6e6e6",
         "text_dark": "#666666"
     },

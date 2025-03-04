@@ -1,7 +1,7 @@
 use std::io;
 use std::sync::mpsc::RecvError;
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use std::{io::Read, sync::mpsc};
@@ -26,12 +26,14 @@ enum Field {
     Period,
 
     Weapon,
-    
+
+    Priority,
+
     LeftWhiteLed,
     LeftColorLed,
     RightWhiteLed,
     RightColorLed,
-    
+
     LeftCaution,
     LeftPenalty,
     RightCaution,
@@ -41,6 +43,12 @@ enum Field {
     LeftPCardTop,
     RightPCardBot,
     RightPCardTop,
+
+    AutoScore,
+    AutoTimer,
+
+    PassiveCounter,
+    PassiveIndicator,
 
     Unknown,
 }
@@ -54,6 +62,8 @@ impl std::fmt::Display for Field {
             Field::Period => write!(f, "Period"),
 
             Field::Weapon => write!(f, "Weapon"),
+
+            Field::Priority => write!(f, "Priority"),
 
             Field::LeftWhiteLed => write!(f, "Left White Led"),
             Field::LeftColorLed => write!(f, "Left Color Led"),
@@ -69,6 +79,12 @@ impl std::fmt::Display for Field {
             Field::LeftPCardTop => write!(f, "Left Top PCard"),
             Field::RightPCardBot => write!(f, "Right Bottom PCard"),
             Field::RightPCardTop => write!(f, "Right Top PCard"),
+
+            Field::AutoScore => write!(f, "Auto Score"),
+            Field::AutoTimer => write!(f, "Auto Timer"),
+
+            Field::PassiveCounter => write!(f, "Passive Counter"),
+            Field::PassiveIndicator => write!(f, "Passive Indicator"),
 
             Field::Unknown => write!(f, "Unknown"),
         }
@@ -91,6 +107,8 @@ fn parse_field(input: &str) -> Field {
 
         "weapon" => Field::Weapon,
 
+        "priority" => Field::Priority,
+
         "leftwhiteled" => Field::LeftWhiteLed,
         "leftcolorled" => Field::LeftColorLed,
         "rightwhiteled" => Field::RightWhiteLed,
@@ -106,6 +124,12 @@ fn parse_field(input: &str) -> Field {
         "rightbotpcard" => Field::RightPCardBot,
         "righttoppcard" => Field::RightPCardTop,
 
+        "passivecounter" => Field::PassiveCounter,
+        "passiveindicator" => Field::PassiveIndicator,
+
+        "autoscore" => Field::AutoScore,
+        "autotimer" => Field::AutoTimer,
+
         _ => Field::Unknown,
     }
 }
@@ -116,12 +140,10 @@ fn parse_command(input: &str) -> Command {
     match parts.as_slice() {
         ["set", variable, value] => match parse_field(&variable) {
             Field::Unknown => Command::Unknown,
-            field => {
-                match value.parse::<u32>() {
-                    Ok(value) => Command::Set(field, value),
-                    _ => Command::Unknown,
-                }
-            }
+            field => match value.parse::<u32>() {
+                Ok(value) => Command::Set(field, value),
+                _ => Command::Unknown,
+            },
         },
         ["get", variable] => match parse_field(&variable) {
             Field::Unknown => Command::Unknown,
@@ -160,35 +182,51 @@ impl ConsoleBackend {
             match command {
                 Command::Set(field, value) => {
                     let mut match_info_data = self.match_info.lock().unwrap();
-                    
+
                     match field {
                         Field::LeftScore => match_info_data.left_score = value,
                         Field::RightScore => match_info_data.right_score = value,
                         Field::Time => match_info_data.timer = value,
                         Field::Period => match_info_data.period = value,
 
-                        Field::Weapon => match_info_data.weapon = match value {
-                            1 => match_info::Weapon::Epee,
-                            2 => match_info::Weapon::Sabre,
-                            3 => match_info::Weapon::Fleuret,
-                            _ => match_info::Weapon::Unknown,
-                        },
-                        
+                        Field::Weapon => {
+                            match_info_data.weapon = match value {
+                                1 => match_info::Weapon::Epee,
+                                2 => match_info::Weapon::Sabre,
+                                3 => match_info::Weapon::Fleuret,
+                                _ => match_info::Weapon::Unknown,
+                            }
+                        }
+
+                        Field::Priority => {
+                            match_info_data.priority = match value {
+                                1 => match_info::Priority::Left,
+                                2 => match_info::Priority::Right,
+                                _ => match_info::Priority::None,
+                            }
+                        }
+
                         Field::LeftColorLed => match_info_data.left_red_led_on = value > 0,
                         Field::LeftWhiteLed => match_info_data.left_white_led_on = value > 0,
                         Field::RightColorLed => match_info_data.right_green_led_on = value > 0,
                         Field::RightWhiteLed => match_info_data.right_white_led_on = value > 0,
-                        
+
                         Field::LeftCaution => match_info_data.left_caution = value > 0,
                         Field::LeftPenalty => match_info_data.left_penalty = value > 0,
                         Field::RightCaution => match_info_data.right_caution = value > 0,
                         Field::RightPenalty => match_info_data.right_penalty = value > 0,
-                        
+
                         Field::LeftPCardBot => match_info_data.left_pcard_bot = value > 0,
                         Field::LeftPCardTop => match_info_data.left_pcard_top = value > 0,
                         Field::RightPCardBot => match_info_data.right_pcard_bot = value > 0,
                         Field::RightPCardTop => match_info_data.right_pcard_top = value > 0,
-                        
+
+                        Field::AutoScore => match_info_data.auto_score_on = value > 0,
+                        Field::AutoTimer => match_info_data.auto_timer_on = value > 0,
+
+                        Field::PassiveCounter => match_info_data.passive_counter = value,
+                        Field::PassiveIndicator => match_info_data.passive_indicator = value,
+
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
@@ -202,22 +240,30 @@ impl ConsoleBackend {
                         Field::Period => println!("{}", match_info_data.period),
 
                         Field::Weapon => println!("{}", match_info_data.weapon),
-                        
+
+                        Field::Priority => println!("{}", match_info_data.priority),
+
                         Field::LeftColorLed => println!("{}", match_info_data.left_red_led_on),
                         Field::LeftWhiteLed => println!("{}", match_info_data.left_white_led_on),
                         Field::RightColorLed => println!("{}", match_info_data.right_green_led_on),
                         Field::RightWhiteLed => println!("{}", match_info_data.right_white_led_on),
-                        
+
                         Field::LeftCaution => println!("{}", match_info_data.left_caution),
                         Field::LeftPenalty => println!("{}", match_info_data.left_penalty),
                         Field::RightCaution => println!("{}", match_info_data.right_caution),
                         Field::RightPenalty => println!("{}", match_info_data.right_penalty),
-                        
+
                         Field::LeftPCardBot => println!("{}", match_info_data.left_pcard_bot),
                         Field::LeftPCardTop => println!("{}", match_info_data.left_pcard_top),
                         Field::RightPCardBot => println!("{}", match_info_data.right_pcard_bot),
                         Field::RightPCardTop => println!("{}", match_info_data.right_pcard_top),
-                        
+
+                        Field::AutoScore => println!("{}", match_info_data.auto_score_on),
+                        Field::AutoTimer => println!("{}", match_info_data.auto_timer_on),
+
+                        Field::PassiveCounter => println!("{}", match_info_data.passive_counter),
+                        Field::PassiveIndicator => println!("{}", match_info_data.passive_indicator),
+
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
