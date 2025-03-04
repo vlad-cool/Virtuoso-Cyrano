@@ -11,14 +11,18 @@
         "blue": "#00a0e3"
     },
     "warning": {
-        "red": "#e31e24",
         "yellow": "#cccc00",
+        "dark_yellow": "#292900",
+        "red": "#e31e24",
+        "dark_red": "#2d0607",
         "text_light": "#e6e6e6",
         "text_dark": "#666666"
     },
     "passive": {
         "yellow": "#cccc00",
+        "dark_yellow": "#292900",
         "red": "#e31e24",
+        "dark_red": "#2d0607",
         "text_light": "#dfdfdf",
         "text_dark": "#4c4c4c"
     },

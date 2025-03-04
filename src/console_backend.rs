@@ -28,6 +28,10 @@ enum Field {
     LeftColorLed,
     RightWhiteLed,
     RightColorLed,
+    LeftCaution,
+    LeftPenalty,
+    RightCaution,
+    RightPenalty,
     Unknown,
 }
 
@@ -42,6 +46,10 @@ impl std::fmt::Display for Field {
             Field::LeftColorLed => write!(f, "Left Color Led"),
             Field::RightWhiteLed => write!(f, "Right White Led"),
             Field::RightColorLed => write!(f, "Right Color Led"),
+            Field::LeftCaution => write!(f, "Left Caution"),
+            Field::LeftPenalty => write!(f, "Left Penalty"),
+            Field::RightCaution => write!(f, "Right Caution"),
+            Field::RightPenalty => write!(f, "Right Penalty"),
             Field::Unknown => write!(f, "Unknown"),
         }
     }
@@ -64,6 +72,10 @@ fn parse_field(input: &str) -> Field {
         "leftcolorled" => Field::LeftColorLed,
         "rightwhiteled" => Field::RightWhiteLed,
         "rightcolorled" => Field::RightColorLed,
+        "leftcaution" => Field::LeftCaution,
+        "leftpenalty" => Field::LeftPenalty,
+        "rightcaution" => Field::RightCaution,
+        "rightpenalty" => Field::RightPenalty,
         _ => Field::Unknown,
     }
 }
@@ -128,6 +140,10 @@ impl ConsoleBackend {
                         Field::LeftWhiteLed => match_info_data.left_white_led_on = value > 0,
                         Field::RightColorLed => match_info_data.right_green_led_on = value > 0,
                         Field::RightWhiteLed => match_info_data.right_white_led_on = value > 0,
+                        Field::LeftCaution => match_info_data.left_caution = value > 0,
+                        Field::LeftPenalty => match_info_data.left_penalty = value > 0,
+                        Field::RightCaution => match_info_data.right_caution = value > 0,
+                        Field::RightPenalty => match_info_data.right_penalty = value > 0,
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
@@ -143,6 +159,10 @@ impl ConsoleBackend {
                         Field::LeftWhiteLed => println!("{}", match_info_data.left_white_led_on),
                         Field::RightColorLed => println!("{}", match_info_data.right_green_led_on),
                         Field::RightWhiteLed => println!("{}", match_info_data.right_white_led_on),
+                        Field::LeftCaution => println!("{}", match_info_data.left_caution),
+                        Field::LeftPenalty => println!("{}", match_info_data.left_penalty),
+                        Field::RightCaution => println!("{}", match_info_data.right_caution),
+                        Field::RightPenalty => println!("{}", match_info_data.right_penalty),
                         Field::Unknown => println!("Unknown field"),
                     }
                 }

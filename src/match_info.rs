@@ -34,6 +34,11 @@ pub struct MatchInfo {
     pub right_green_led_on: bool,
     pub right_white_led_on: bool,
 
+    pub left_caution: bool,
+    pub left_penalty: bool,
+    pub right_caution: bool,
+    pub right_penalty: bool,
+
     pub last_cyrano_request: Option<std::time::Instant>,
 }
 
@@ -61,6 +66,11 @@ impl MatchInfo {
             left_white_led_on: false,
             right_green_led_on: false,
             right_white_led_on: false,
+
+            left_caution: false,
+            left_penalty: false,
+            right_caution: false,
+            right_penalty: false,
         
             last_cyrano_request: None,
         }

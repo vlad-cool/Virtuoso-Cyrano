@@ -21,10 +21,16 @@ fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
     app.set_right_score(match_info_data.right_score as i32);
     app.set_timer(match_info_data.timer as i32);
     app.set_period(match_info_data.period as i32);
+    
     app.set_left_color_led_on(match_info_data.left_red_led_on);
     app.set_left_white_led_on(match_info_data.left_white_led_on);
     app.set_right_color_led_on(match_info_data.right_green_led_on);
     app.set_right_white_led_on(match_info_data.right_white_led_on);
+
+    app.set_left_caution(match_info_data.left_caution);
+    app.set_left_penalty(match_info_data.left_penalty);
+    app.set_right_caution(match_info_data.right_caution);
+    app.set_right_penalty(match_info_data.right_penalty);
 }
 
 impl SlintFrontend {
