@@ -90,8 +90,10 @@ export global Palette {
     out property <brush> color_labels_dark_green: #001e0e;
     out property <brush> white_labels_light: #e6e6e6;
     out property <brush> white_labels_dark: #222222;
-    out property <brush> priority_left: #e31e24;
-    out property <brush> priority_right: #009846;
+    out property <brush> priority_red: #e31e24;
+    out property <brush> priority_dark_red: #2d0607;
+    out property <brush> priority_green: #009846;
+    out property <brush> priority_dark_green: #001e0e;
     out property <brush> priority_text_light: #e6e6e6;
     out property <brush> priority_text_dark: #666666;
     out property <brush> weapon_text_light: #dfdfdf;
@@ -131,27 +133,48 @@ export component Virtuoso inherits Window {
     in property <bool> right_bot_pcard;
     in property <bool> right_top_pcard;
 
+    in property <bool> timer_flashing;
+
     default-font-family: "Agency FB";
     width: 1px * layout.background.width;
     height: 1px * layout.background.height;
     background: Palette.background;
 
-    property <[{name: string, layout: TextProperties, index: int}]> weapons: [
+    property <[{name: string, layout: TextProperties, index: int}]> weapon_elements: [
         { name: "epee", layout: layout.epee, index: 1 },
         { name: "sabre", layout: layout.sabre, index: 2 },
-        { name: "fleuret", layout: layout.fleuret, index: 3 }
+        { name: "fleuret", layout: layout.fleuret, index: 3 },
     ];
 
-    for weapon in weapons: Text {
-        x: 1px * weapon.layout.x;
-        y: 1px * weapon.layout.y;
-        width: 1px * weapon.layout.width;
-        height: 1px * weapon.layout.height;
-        font-size: 1px * weapon.layout.font_size;
-        text: weapon.name;
+    for weapon_element in weapon_elements: Text {
+        x: 1px * weapon_element.layout.x;
+        y: 1px * weapon_element.layout.y;
+        width: 1px * weapon_element.layout.width;
+        height: 1px * weapon_element.layout.height;
+        font-size: 1px * weapon_element.layout.font_size;
+        text: weapon_element.name;
         horizontal-alignment: center;
         vertical-alignment: center;
-        color: root.weapon == weapon.index ? Palette.weapon_text_light : Palette.weapon_text_dark;
+        color: weapon == weapon_element.index ? Palette.weapon_text_light : Palette.weapon_text_dark;
+    }
+
+    property <[{text: string, layout: TextProperties, index: int, color_disabled: brush, color_enabled: brush}]> priority_elements: [
+        { text: "P", layout: layout.prioriry-l-cap, index: -1, color_disabled: Palette.priority_dark_red, color_enabled: Palette.priority_red },
+        { text: "riority", layout: layout.priority-l-text, index: -1, color_disabled: Palette.priority_text_dark, color_enabled: Palette.priority_text_light },
+        { text: "P", layout: layout.priority-r-cap, index: 1, color_disabled: Palette.priority_dark_green, color_enabled: Palette.priority_green },
+        { text: "riority", layout: layout.priority-r-text, index: 1, color_disabled: Palette.priority_text_dark, color_enabled: Palette.priority_text_light },
+    ];
+
+    for priority_element in priority_elements: Text {
+        x: 1px * priority_element.layout.x;
+        y: 1px * priority_element.layout.y;
+        width: 1px * priority_element.layout.width;
+        height: 1px * priority_element.layout.height;
+        font-size: 1px * priority_element.layout.font_size;
+        text: priority_element.text;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: priority == priority_element.index ? priority-element.color_enabled : priority-element.color-disabled;
     }
 
     Text {
@@ -161,7 +184,7 @@ export component Virtuoso inherits Window {
         height: 1px * layout.score-l-l.height;
 
         font-size: 1px * layout.score-l-l.font_size;
-        text: left_score > 10 ? Math.floor(left_score / 10) : Math.mod(left_score, 10);
+        text: left_score > 9 ? Math.floor(left_score / 10) : Math.mod(left_score, 10);
         horizontal-alignment: center;
         vertical-alignment: center;
         color: Palette.score_left;
@@ -477,5 +500,63 @@ export component Virtuoso inherits Window {
         horizontal-alignment: center;
         vertical-alignment: center;
         color: right_top_pcard ? Palette.passive_text_light : Palette.passive_text_dark;
+    }
+
+    Text {
+        x: 1px * layout.auto-score-status.x;
+        y: 1px * layout.auto-score-status.y;
+        width: 1px * layout.auto-score-status.width;
+        height: 1px * layout.auto-score-status.height;
+        font-size: 1px * layout.auto-score-status.font_size;
+        text: auto_score_on ? "auto score\non" : "auto score\noff";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: auto_score_on ? Palette.auto_status_text_light : Palette.auto_status_text_dark;
+    }
+
+    Text {
+        x: 1px * layout.auto-timer-status.x;
+        y: 1px * layout.auto-timer-status.y;
+        width: 1px * layout.auto-timer-status.width;
+        height: 1px * layout.auto-timer-status.height;
+        font-size: 1px * layout.auto-timer-status.font_size;
+        text: auto_timer_on ? "auto timer\non" : "auto timer\noff";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: auto_timer_on ? Palette.auto_status_text_light : Palette.auto_status_text_dark;
+    }
+
+    Text {
+        x: 1px * layout.passive-counter-dec.x;
+        y: 1px * layout.passive-counter-dec.y;
+        width: 1px * layout.passive-counter-dec.width;
+        height: 1px * layout.passive-counter-dec.height;
+        font-size: 1px * layout.passive-counter-dec.font_size;
+        text: passive_counter >= 0 ? Math.floor(passive_counter / 10) : 6;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: passive_counter >= 0 ? Palette.passive_text_light : Palette.passive_text_dark;
+    }
+    
+    Text {
+        x: 1px * layout.passive-counter-sec.x;
+        y: 1px * layout.passive-counter-sec.y;
+        width: 1px * layout.passive-counter-sec.width;
+        height: 1px * layout.passive-counter-sec.height;
+        font-size: 1px * layout.passive-counter-sec.font_size;
+        text: passive_counter >= 0 ? Math.mod(passive_counter, 10) : 0;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: passive_counter >= 0 ? Palette.passive_text_light : Palette.passive_text_dark;
+    }
+
+    Rectangle {
+        x: 1px * (layout.passive-indicator.x + layout.passive-indicator.width / 2 - layout.passive-indicator.width * passive_indicator / 2000);
+        y: 1px * layout.passive-indicator.y;
+        width: 1px * (layout.passive-indicator.width * passive_indicator / 1000);
+        height: 1px * layout.passive-indicator.height;
+        border-radius: 1px * layout.passive-indicator.radius;
+
+        background: passive_counter > 10 ? Palette.passive_yellow : ((passive_counter == 0 || timer_flashing) ? Palette.passive_red : Palette.background);
     }
 }
