@@ -118,18 +118,18 @@ export component Virtuoso inherits Window {
     in property <bool> right_caution;
     in property <bool> right_penalty;
 
-    in property <bool> p_card_l_b;
-    in property <bool> p_card_l_t;
-    in property <bool> p_card_r_b;
-    in property <bool> p_card_r_t;
-
     in property <bool> auto_score_on;
     in property <bool> auto_timer_on;
 
     in property <bool> left_color_led_on;
     in property <bool> left_white_led_on;
     in property <bool> right_color_led_on;
-    in property <bool> right_white_led_on;        
+    in property <bool> right_white_led_on;
+
+    in property <bool> left_bot_pcard;
+    in property <bool> left_top_pcard;
+    in property <bool> right_bot_pcard;
+    in property <bool> right_top_pcard;
 
     default-font-family: "Agency FB";
     width: 1px * layout.background.width;
@@ -371,5 +371,93 @@ export component Virtuoso inherits Window {
         horizontal-alignment: center;
         vertical-alignment: center;
         color: right_penalty ? Palette.warning_text_light : Palette.weapon_text_dark;
+    }
+
+    Rectangle {
+        x: 1px * layout.passive-l-bot-rect.x;
+        y: 1px * layout.passive-l-bot-rect.y;
+        width: 1px * layout.passive-l-bot-rect.width;
+        height: 1px * layout.passive-l-bot-rect.height;
+        border-radius: 1px * layout.passive-l-bot-rect.radius;
+
+        background: left_bot_pcard ? Palette.passive_yellow : Palette.passive_dark_yellow;
+    }
+
+    Text {
+        x: 1px * layout.passive-l-bot-text.x;
+        y: 1px * layout.passive-l-bot-text.y;
+        width: 1px * layout.passive-l-bot-text.width;
+        height: 1px * layout.passive-l-bot-text.height;
+        font-size: 1px * layout.passive-l-bot-text.font_size;
+        text: "Pcard";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: left_bot_pcard ? Palette.passive_text_light : Palette.passive_text_dark;
+    }
+
+    Rectangle {
+        x: 1px * layout.passive-l-top-rect.x;
+        y: 1px * layout.passive-l-top-rect.y;
+        width: 1px * layout.passive-l-top-rect.width;
+        height: 1px * layout.passive-l-top-rect.height;
+        border-radius: 1px * layout.passive-l-top-rect.radius;
+
+        background: left_top_pcard ? Palette.passive_red : Palette.passive_dark_red;
+    }
+
+    Text {
+        x: 1px * layout.passive-l-top-text.x;
+        y: 1px * layout.passive-l-top-text.y;
+        width: 1px * layout.passive-l-top-text.width;
+        height: 1px * layout.passive-l-top-text.height;
+        font-size: 1px * layout.passive-l-top-text.font_size;
+        text: "Pcard";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: left_top_pcard ? Palette.passive_text_light : Palette.passive_text_dark;
+    }
+
+    Rectangle {
+        x: 1px * layout.passive-r-bot-rect.x;
+        y: 1px * layout.passive-r-bot-rect.y;
+        width: 1px * layout.passive-r-bot-rect.width;
+        height: 1px * layout.passive-r-bot-rect.height;
+        border-radius: 1px * layout.passive-r-bot-rect.radius;
+
+        background: right_bot_pcard ? Palette.passive_yellow : Palette.passive_dark_yellow;
+    }
+
+    Text {
+        x: 1px * layout.passive-r-bot-text.x;
+        y: 1px * layout.passive-r-bot-text.y;
+        width: 1px * layout.passive-r-bot-text.width;
+        height: 1px * layout.passive-r-bot-text.height;
+        font-size: 1px * layout.passive-r-bot-text.font_size;
+        text: "Pcard";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: right_bot_pcard ? Palette.passive_text_light : Palette.passive_text_dark;
+    }
+
+    Rectangle {
+        x: 1px * layout.passive-r-top-rect.x;
+        y: 1px * layout.passive-r-top-rect.y;
+        width: 1px * layout.passive-r-top-rect.width;
+        height: 1px * layout.passive-r-top-rect.height;
+        border-radius: 1px * layout.passive-r-top-rect.radius;
+
+        background: right_top_pcard ? Palette.passive_red : Palette.passive_dark_red;
+    }
+
+    Text {
+        x: 1px * layout.passive-r-top-text.x;
+        y: 1px * layout.passive-r-top-text.y;
+        width: 1px * layout.passive-r-top-text.width;
+        height: 1px * layout.passive-r-top-text.height;
+        font-size: 1px * layout.passive-r-top-text.font_size;
+        text: "Pcard";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: right_top_pcard ? Palette.passive_text_light : Palette.passive_text_dark;
     }
 }

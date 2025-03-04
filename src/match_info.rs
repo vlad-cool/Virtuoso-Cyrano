@@ -21,11 +21,6 @@ pub struct MatchInfo {
     pub passive_indicator: u32,
     pub passive_counter: u32,
 
-    pub p_card_l_b: bool,
-    pub p_card_l_t: bool,
-    pub p_card_r_b: bool,
-    pub p_card_r_t: bool,
-
     pub auto_score_on: bool,
     pub auto_timer_on: bool,
 
@@ -38,6 +33,11 @@ pub struct MatchInfo {
     pub left_penalty: bool,
     pub right_caution: bool,
     pub right_penalty: bool,
+
+    pub left_pcard_bot: bool,
+    pub left_pcard_top: bool,
+    pub right_pcard_bot: bool,
+    pub right_pcard_top: bool,
 
     pub last_cyrano_request: Option<std::time::Instant>,
 }
@@ -54,11 +54,6 @@ impl MatchInfo {
             passive_indicator: 0,
             passive_counter: 60,
 
-            p_card_l_b: false,
-            p_card_l_t: false,
-            p_card_r_b: false,
-            p_card_r_t: false,
-
             auto_score_on: false,
             auto_timer_on: false,
         
@@ -71,6 +66,11 @@ impl MatchInfo {
             left_penalty: false,
             right_caution: false,
             right_penalty: false,
+
+            left_pcard_bot: false,
+            left_pcard_top: false,
+            right_pcard_bot: false,
+            right_pcard_top: false,
         
             last_cyrano_request: None,
         }

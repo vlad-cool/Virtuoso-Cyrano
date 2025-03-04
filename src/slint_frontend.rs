@@ -31,6 +31,11 @@ fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
     app.set_left_penalty(match_info_data.left_penalty);
     app.set_right_caution(match_info_data.right_caution);
     app.set_right_penalty(match_info_data.right_penalty);
+
+    app.set_left_bot_pcard(match_info_data.left_pcard_bot);
+    app.set_left_top_pcard(match_info_data.left_pcard_top);
+    app.set_right_bot_pcard(match_info_data.right_pcard_bot);
+    app.set_right_top_pcard(match_info_data.right_pcard_top);
 }
 
 impl SlintFrontend {

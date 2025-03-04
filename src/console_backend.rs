@@ -24,14 +24,22 @@ enum Field {
     RightScore,
     Time,
     Period,
+    
     LeftWhiteLed,
     LeftColorLed,
     RightWhiteLed,
     RightColorLed,
+    
     LeftCaution,
     LeftPenalty,
     RightCaution,
     RightPenalty,
+
+    LeftPCardBot,
+    LeftPCardTop,
+    RightPCardBot,
+    RightPCardTop,
+
     Unknown,
 }
 
@@ -42,14 +50,22 @@ impl std::fmt::Display for Field {
             Field::RightScore => write!(f, "Right Score"),
             Field::Time => write!(f, "Time"),
             Field::Period => write!(f, "Period"),
+
             Field::LeftWhiteLed => write!(f, "Left White Led"),
             Field::LeftColorLed => write!(f, "Left Color Led"),
             Field::RightWhiteLed => write!(f, "Right White Led"),
             Field::RightColorLed => write!(f, "Right Color Led"),
+
             Field::LeftCaution => write!(f, "Left Caution"),
             Field::LeftPenalty => write!(f, "Left Penalty"),
             Field::RightCaution => write!(f, "Right Caution"),
             Field::RightPenalty => write!(f, "Right Penalty"),
+
+            Field::LeftPCardBot => write!(f, "Left Bottom PCard"),
+            Field::LeftPCardTop => write!(f, "Left Top PCard"),
+            Field::RightPCardBot => write!(f, "Right Bottom PCard"),
+            Field::RightPCardTop => write!(f, "Right Top PCard"),
+
             Field::Unknown => write!(f, "Unknown"),
         }
     }
@@ -68,14 +84,22 @@ fn parse_field(input: &str) -> Field {
         "rightscore" => Field::RightScore,
         "time" => Field::Time,
         "period" => Field::Period,
+
         "leftwhiteled" => Field::LeftWhiteLed,
         "leftcolorled" => Field::LeftColorLed,
         "rightwhiteled" => Field::RightWhiteLed,
         "rightcolorled" => Field::RightColorLed,
+
         "leftcaution" => Field::LeftCaution,
         "leftpenalty" => Field::LeftPenalty,
         "rightcaution" => Field::RightCaution,
         "rightpenalty" => Field::RightPenalty,
+
+        "leftbotpcard" => Field::LeftPCardBot,
+        "lefttoppcard" => Field::LeftPCardTop,
+        "rightbotpcard" => Field::RightPCardBot,
+        "righttoppcard" => Field::RightPCardTop,
+
         _ => Field::Unknown,
     }
 }
@@ -136,14 +160,22 @@ impl ConsoleBackend {
                         Field::RightScore => match_info_data.right_score = value,
                         Field::Time => match_info_data.timer = value,
                         Field::Period => match_info_data.period = value,
+                        
                         Field::LeftColorLed => match_info_data.left_red_led_on = value > 0,
                         Field::LeftWhiteLed => match_info_data.left_white_led_on = value > 0,
                         Field::RightColorLed => match_info_data.right_green_led_on = value > 0,
                         Field::RightWhiteLed => match_info_data.right_white_led_on = value > 0,
+                        
                         Field::LeftCaution => match_info_data.left_caution = value > 0,
                         Field::LeftPenalty => match_info_data.left_penalty = value > 0,
                         Field::RightCaution => match_info_data.right_caution = value > 0,
                         Field::RightPenalty => match_info_data.right_penalty = value > 0,
+                        
+                        Field::LeftPCardBot => match_info_data.left_pcard_bot = value > 0,
+                        Field::LeftPCardTop => match_info_data.left_pcard_top = value > 0,
+                        Field::RightPCardBot => match_info_data.right_pcard_bot = value > 0,
+                        Field::RightPCardTop => match_info_data.right_pcard_top = value > 0,
+                        
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
@@ -155,14 +187,22 @@ impl ConsoleBackend {
                         Field::RightScore => println!("{}", match_info_data.right_score),
                         Field::Time => println!("{}", match_info_data.timer),
                         Field::Period => println!("{}", match_info_data.period),
+                        
                         Field::LeftColorLed => println!("{}", match_info_data.left_red_led_on),
                         Field::LeftWhiteLed => println!("{}", match_info_data.left_white_led_on),
                         Field::RightColorLed => println!("{}", match_info_data.right_green_led_on),
                         Field::RightWhiteLed => println!("{}", match_info_data.right_white_led_on),
+                        
                         Field::LeftCaution => println!("{}", match_info_data.left_caution),
                         Field::LeftPenalty => println!("{}", match_info_data.left_penalty),
                         Field::RightCaution => println!("{}", match_info_data.right_caution),
                         Field::RightPenalty => println!("{}", match_info_data.right_penalty),
+                        
+                        Field::LeftPCardBot => println!("{}", match_info_data.left_pcard_bot),
+                        Field::LeftPCardTop => println!("{}", match_info_data.left_pcard_top),
+                        Field::RightPCardBot => println!("{}", match_info_data.right_pcard_bot),
+                        Field::RightPCardTop => println!("{}", match_info_data.right_pcard_top),
+                        
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
