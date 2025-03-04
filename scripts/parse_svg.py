@@ -71,6 +71,8 @@ def parse_layout(parent, offset=0):
 parse_layout(root)
 
 for key, element in elements.items():
+    if element.name == "Rectangle":
+        continue
     match element.type:
         case "text":
             print(f"    {element.name}: TextProperties,")

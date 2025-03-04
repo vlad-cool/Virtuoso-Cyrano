@@ -39,8 +39,8 @@ export struct Layout  {
     penalty_l_text: TextProperties,
     passive_l_bot_rect: RectangleProperties,
     passive_l_bot_text: TextProperties,
-    passice_l_top_rect: RectangleProperties,
-    passice_l_top_text: TextProperties,
+    passive_l_top_rect: RectangleProperties,
+    passive_l_top_text: TextProperties,
     caution_r_rect: RectangleProperties,
     caution_r_text: TextProperties,
     penalty_r_rect: RectangleProperties,
@@ -52,51 +52,80 @@ export struct Layout  {
     period: TextProperties,
     passive_counter_dec: TextProperties,
     passive_counter_sec: TextProperties,
+    timer_m: TextProperties,
+    timer_colon: TextProperties,
+    timer_d: TextProperties,
+    timer_s: TextProperties,
+    passive_indicator: RectangleProperties,
+    left_color_indicator: RectangleProperties,
+    right_color_indicator: RectangleProperties,
+    left_white_indicator: RectangleProperties,
+    right_white_indicator: RectangleProperties,
+    recording_indicator: RectangleProperties,
 }
 
 export global Palette {
-    out property <brush> background: #00f0f0;
-    out property <brush> score_l:    #ff0000;
-    out property <brush> score_r:    #00ff00;
-    out property <brush> period:     #0000ff;
+    out property <brush> background: #000000;
+    out property <brush> score_left: #e31e24;
+    out property <brush> score_right: #009846;
+    out property <brush> period: #00a0e3;
+    out property <brush> timer_white: #dfdfdf;
+    out property <brush> timer_orange: #ef7f1a;
+    out property <brush> timer_blue: #00a0e3;
+    out property <brush> warning_red: #e31e24;
+    out property <brush> warning_yellow: #cccc00;
+    out property <brush> warning_text_light: #e6e6e6;
+    out property <brush> warning_text_dark: #666666;
+    out property <brush> passive_yellow: #cccc00;
+    out property <brush> passive_red: #e31e24;
+    out property <brush> passive_text_light: #dfdfdf;
+    out property <brush> passive_text_dark: #4c4c4c;
+    out property <brush> color_labels_red: #e31e24;
+    out property <brush> color_labels_dark_red: #2d0607;
+    out property <brush> color_labels_green: #009846;
+    out property <brush> color_labels_dark_green: #001e0e;
+    out property <brush> white_labels_light: #e6e6e6;
+    out property <brush> white_labels_dark: #222222;
+    out property <brush> priority_left: #e31e24;
+    out property <brush> priority_right: #009846;
+    out property <brush> priority_text_light: #e6e6e6;
+    out property <brush> priority_text_dark: #666666;
+    out property <brush> weapon_text_light: #dfdfdf;
+    out property <brush> weapon_text_dark: #4c4c4c;
+    out property <brush> auto_status_text_light: #dfdfdf;
+    out property <brush> auto_status_text_dark: #4c4c4c;
+    out property <brush> recording: #ff0000;
 }
 
 export component Virtuoso inherits Window {
     in property <Layout> layout;
 
-    in property <int> score_l;
-    in property <int> score_r;
+    in property <int> weapon;
+    in property <int> left_score;
+    in property <int> right_score;
     in property <int> timer;
     in property <int> period;
+    in property <int> priority;
+    in property <int> passive_indicator;
+    in property <int> passive_counter;
 
-    in property <int> font_sz;
+    in property <bool> p_card_l_b;
+    in property <bool> p_card_l_t;
+    in property <bool> p_card_r_b;
+    in property <bool> p_card_r_t;
+
+    in property <bool> auto_score_on;
+    in property <bool> auto_timer_on;
+
+    in property <bool> left_color_led_on;
+    in property <bool> left_white_led_on;
+    in property <bool> right_color_led_on;
+    in property <bool> right_white_led_on;        
 
     default-font-family: "Agency FB";
     width: 1px * layout.background.width;
     height: 1px * layout.background.height;
     background: Palette.background;
-
-    // Text {
-    //     x: 0px;
-    //     y: 0px;
-    //     width: 1920px;
-    //     height: 480px;
-    //     font_size: 1000px;
-    //     text: "AAAAA";
-
-    //     horizontal-alignment: center;
-    //     vertical-alignment: center;
-    //     color: Palette.score_l;
-    // }
-
-    // timer := Timer {
-    //     interval: 1s;
-    //     running: true;
-    //     // triggered() => {
-    //     //     root.set_score_l(value);
-    //     //     value += 1;
-    //     // }
-    // }
 
     Text {
         x: 1px * layout.score-l-l.x;
@@ -105,10 +134,10 @@ export component Virtuoso inherits Window {
         height: 1px * layout.score-l-l.height;
 
         font-size: 1px * layout.score-l-l.font_size;
-        text: score_l > 10 ? Math.floor(score_l / 10) : Math.mod(score_l, 10);
+        text: left_score > 10 ? Math.floor(left_score / 10) : Math.mod(left_score, 10);
         horizontal-alignment: center;
         vertical-alignment: center;
-        color: Palette.score_l;
+        color: Palette.score_left;
     }
 
     Text {
@@ -117,10 +146,10 @@ export component Virtuoso inherits Window {
         width: 1px * layout.score-l-r.width;
         height: 1px * layout.score-l-r.height;
         font-size: 1px * layout.score-l-r.font_size;
-        text: score_l > 10 ? Math.mod(score_l, 10) : " ";
+        text: left_score > 10 ? Math.mod(left_score, 10) : " ";
         horizontal-alignment: center;
         vertical-alignment: center;
-        color: Palette.score_l;
+        color: Palette.score_left;
     }
 
     Text {
@@ -129,11 +158,10 @@ export component Virtuoso inherits Window {
         width: 1px * layout.score-r-l.width;
         height: 1px * layout.score-r-l.height;
         font-size: 1px * layout.score-r-l.font_size;
-        // text: score_r > 10 ? Math.floor(score_r / 10) : " ";
-        text: "-";
+        text: right_score > 9 ? Math.floor(right_score / 10) : " ";
         horizontal-alignment: center;
         vertical-alignment: center;
-        color: Palette.score_r;
+        color: Palette.score_right;
     }
 
     Text {
@@ -142,11 +170,10 @@ export component Virtuoso inherits Window {
         width: 1px * layout.score-r-r.width;
         height: 1px * layout.score-r-r.height;
         font-size: 1px * layout.score-r-r.font_size;
-        // text: scor Math.mod(score_r, 10);
-        text: "#";
+        text: Math.mod(right_score, 10);
         horizontal-alignment: center;
         vertical-alignment: center;
-        color: Palette.score_r;
+        color: Palette.score_right;
     }
 
     Text {
@@ -159,5 +186,93 @@ export component Virtuoso inherits Window {
         horizontal-alignment: center;
         vertical-alignment: center;
         color: Palette.period;
+    }
+
+    Text {
+        x: 1px * layout.timer-m.x;
+        y: 1px * layout.timer-m.y;
+        width: 1px * layout.timer-m.width;
+        height: 1px * layout.timer-m.height;
+        font-size: 1px * layout.timer-m.font_size;
+        text: Math.mod(Math.floor(timer / 100), 10);
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.timer_orange;
+    }
+
+    Text {
+        x: 1px * layout.timer-colon.x;
+        y: 1px * layout.timer-colon.y;
+        width: 1px * layout.timer-colon.width;
+        height: 1px * layout.timer-colon.height;
+        font-size: 1px * layout.timer-colon.font_size;
+        text: ":";
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.timer_orange;
+    }
+
+    Text {
+        x: 1px * layout.timer-d.x;
+        y: 1px * layout.timer-d.y;
+        width: 1px * layout.timer-d.width;
+        height: 1px * layout.timer-d.height;
+        font-size: 1px * layout.timer-d.font_size;
+        text: Math.mod(Math.floor(timer / 10), 10);
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.timer_orange;
+    }
+
+    Text {
+        x: 1px * layout.timer-s.x;
+        y: 1px * layout.timer-s.y;
+        width: 1px * layout.timer-s.width;
+        height: 1px * layout.timer-s.height;
+        font-size: 1px * layout.timer-s.font_size;
+        text: Math.mod(timer, 10);
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: Palette.timer_orange;
+    }
+
+    Rectangle {
+        x: 1px * layout.left-color-indicator.x;
+        y: 1px * layout.left-color-indicator.y;
+        width: 1px * layout.left-color-indicator.width;
+        height: 1px * layout.left-color-indicator.height;
+        border-radius: 1px * layout.left-color-indicator.radius;
+
+        background: left_color_led_on ? Palette.color_labels_red : Palette.color_labels_dark_red;
+    }
+
+    Rectangle {
+        x: 1px * layout.left-white-indicator.x;
+        y: 1px * layout.left-white-indicator.y;
+        width: 1px * layout.left-white-indicator.width;
+        height: 1px * layout.left-white-indicator.height;
+        border-radius: 1px * layout.left-white-indicator.radius;
+
+        background: left_white_led_on ? Palette.white_labels_light : Palette.white_labels_dark;
+    }
+
+    Rectangle {
+        x: 1px * layout.right-color-indicator.x;
+        y: 1px * layout.right-color-indicator.y;
+        width: 1px * layout.right-color-indicator.width;
+        height: 1px * layout.right-color-indicator.height;
+        border-radius: 1px * layout.right-color-indicator.radius;
+
+        background: right_color_led_on ? Palette.color_labels_green : Palette.color_labels_dark_green;
+    }
+
+    Rectangle {
+        x: 1px * layout.right-white-indicator.x;
+        y: 1px * layout.right-white-indicator.y;
+        width: 1px * layout.right-white-indicator.width;
+        height: 1px * layout.right-white-indicator.height;
+        border-radius: 1px * layout.right-white-indicator.radius;
+
+        background: right_white_led_on ? Palette.white_labels_light : Palette.white_labels_dark;
     }
 }

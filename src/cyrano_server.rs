@@ -48,15 +48,15 @@ impl FencerInfo {
                 id: parts[1],
                 name: parts[2],   // 20
                 nation: parts[3], // 3
-                score: ,
-                status: u8,
-                yellow_card: u8,
-                red_card: u8,
-                light: u8,
-                white_light: u8,
-                medical_interventions: u8,
-                reserve_introduction: u8,
-                p_card: u8,
+                score: 0,
+                status: 0,
+                yellow_card: 0,
+                red_card: 0,
+                light: 0,
+                white_light: 0,
+                medical_interventions: 0,
+                reserve_introduction: 0,
+                p_card: 0,
             })
         }
     }

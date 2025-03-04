@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -15,7 +17,6 @@ mod cyrano_server;
 
 #[cfg(feature = "legacy_backend")]
 mod legacy_backend;
-
 #[cfg(feature = "legacy_backend")]
 mod gpio_lib;
 
@@ -63,15 +64,4 @@ fn main() {
     
     #[cfg(feature = "console_backend")]
     console_backend_thread.join().unwrap();
-
-
-    // #[cfg(feature = "cyrano_server")]
-    // let mut cyrano_server = cyrano_server::CyranoServer::new(tx, rx, None);
-    // #[cfg(feature = "cyrano_server")]
-    // let cyrano_thread = thread::spawn(move || {
-    //     cyrano_server.run();
-    // });
-
-    // #[cfg(feature = "cyrano_server")]
-    // cyrano_thread.join().unwrap();
 }

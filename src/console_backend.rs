@@ -6,6 +6,8 @@ use std::thread;
 use std::time::Duration;
 use std::{io::Read, sync::mpsc};
 
+use slint::VecModel;
+
 use crate::match_info;
 use crate::modules;
 
@@ -21,6 +23,11 @@ enum Field {
     LeftScore,
     RightScore,
     Time,
+    Period,
+    LeftWhiteLed,
+    LeftColorLed,
+    RightWhiteLed,
+    RightColorLed,
     Unknown,
 }
 
@@ -30,6 +37,11 @@ impl std::fmt::Display for Field {
             Field::LeftScore => write!(f, "Left Score"),
             Field::RightScore => write!(f, "Right Score"),
             Field::Time => write!(f, "Time"),
+            Field::Period => write!(f, "Period"),
+            Field::LeftWhiteLed => write!(f, "Left White Led"),
+            Field::LeftColorLed => write!(f, "Left Color Led"),
+            Field::RightWhiteLed => write!(f, "Right White Led"),
+            Field::RightColorLed => write!(f, "Right Color Led"),
             Field::Unknown => write!(f, "Unknown"),
         }
     }
@@ -47,6 +59,11 @@ fn parse_field(input: &str) -> Field {
         "leftscore" => Field::LeftScore,
         "rightscore" => Field::RightScore,
         "time" => Field::Time,
+        "period" => Field::Period,
+        "leftwhiteled" => Field::LeftWhiteLed,
+        "leftcolorled" => Field::LeftColorLed,
+        "rightwhiteled" => Field::RightWhiteLed,
+        "rightcolorled" => Field::RightColorLed,
         _ => Field::Unknown,
     }
 }
@@ -106,6 +123,11 @@ impl ConsoleBackend {
                         Field::LeftScore => match_info_data.left_score = value,
                         Field::RightScore => match_info_data.right_score = value,
                         Field::Time => match_info_data.timer = value,
+                        Field::Period => match_info_data.period = value,
+                        Field::LeftColorLed => match_info_data.left_red_led_on = value > 0,
+                        Field::LeftWhiteLed => match_info_data.left_white_led_on = value > 0,
+                        Field::RightColorLed => match_info_data.right_green_led_on = value > 0,
+                        Field::RightWhiteLed => match_info_data.right_white_led_on = value > 0,
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
@@ -116,6 +138,11 @@ impl ConsoleBackend {
                         Field::LeftScore => println!("{}", match_info_data.left_score),
                         Field::RightScore => println!("{}", match_info_data.right_score),
                         Field::Time => println!("{}", match_info_data.timer),
+                        Field::Period => println!("{}", match_info_data.period),
+                        Field::LeftColorLed => println!("{}", match_info_data.left_red_led_on),
+                        Field::LeftWhiteLed => println!("{}", match_info_data.left_white_led_on),
+                        Field::RightColorLed => println!("{}", match_info_data.right_green_led_on),
+                        Field::RightWhiteLed => println!("{}", match_info_data.right_white_led_on),
                         Field::Unknown => println!("Unknown field"),
                     }
                 }
