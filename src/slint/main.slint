@@ -204,10 +204,10 @@ export component Virtuoso inherits Window {
     }
 
     Text {
-        x: 1px * layout.score-l-l.x;
-        y: 1px * layout.score-l-l.y;
-        width: 1px * layout.score-l-l.width;
-        height: 1px * layout.score-l-l.height;
+        x: 1px * layout.score-l-l.x - 1000px;
+        y: 1px * layout.score-l-l.y - 1000px;
+        width: 1px * layout.score-l-l.width + 2000px;
+        height: 1px * layout.score-l-l.height + 2000px;
 
         font-size: 1px * layout.score-l-l.font_size;
         text: left_score > 9 ? Math.floor(left_score / 10) : Math.mod(left_score, 10);

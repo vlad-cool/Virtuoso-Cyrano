@@ -92,10 +92,10 @@ with open("src/layouts.rs", "w") as f:
             continue
         if element.type == "text":
             f.write(f"    {element.name}: TextProperties {{\n")
-            f.write(f"        x: {element.x},\n")
-            f.write(f"        y: {element.y},\n")
-            f.write(f"        width: {element.width},\n")
-            f.write(f"        height: {element.height},\n")
+            f.write(f"        x: {element.x - 100},\n")
+            f.write(f"        y: {element.y - 100},\n")
+            f.write(f"        width: {element.width + 200},\n")
+            f.write(f"        height: {element.height + 200},\n")
             f.write(f"        font_size: {element.font_size},\n")
             f.write(f"    }},\n")
         if element.type == "rect":

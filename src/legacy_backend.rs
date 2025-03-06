@@ -1,6 +1,7 @@
 use serial::{self, SerialPort};
 use std::sync::mpsc::RecvError;
 use std::sync::Mutex;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use std::{io::Read, sync::mpsc};
@@ -9,22 +10,16 @@ use crate::match_info;
 use crate::modules;
 
 pub struct LegacyBackend {
-    tx: mpsc::Sender<modules::Message>,
-    rx: mpsc::Receiver<modules::Message>,
-
-    // match_info: match_info::MatchInfo,
-    match_info: Mutex<match_info::MatchInfo>,
+    match_info: Arc<Mutex<match_info::MatchInfo>>,
 }
 
 impl LegacyBackend {
     pub const MODULE_TYPE: modules::Modules = modules::Modules::LegacyBackend;
 
     pub fn new(
-        tx: mpsc::Sender<modules::Message>,
-        rx: mpsc::Receiver<modules::Message>,
-        match_info: Mutex<match_info::MatchInfo>,
+        match_info: Arc<Mutex<match_info::MatchInfo>>,
     ) -> Self {
-        Self { tx, rx, match_info }
+        Self { match_info }
     }
 
     pub fn run(&mut self) {
@@ -43,12 +38,12 @@ impl LegacyBackend {
             match uart_data_rx.recv() {
                 Err(RecvError) => {}
                 Ok(msg) => {
-                    let match_info_data = match_info.lock().unwrap();
+                    let mut match_info_data = self.match_info.lock().unwrap();
 
                     match_info_data.left_score = msg.score_left;
                     match_info_data.right_score = msg.score_right;
 
-                    if symbol {
+                    if msg.symbol {
                     } else {
                         match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
                             4
@@ -64,16 +59,21 @@ impl LegacyBackend {
                         match_info_data.period
                     };
                     match_info_data.priority = match msg.period {
-                        0b1110 => Priority::Right,
-                        0b1111 => Priority::Left,
-                        0b1011 => Priority::None,
-                        _ => match_info_data.priority,
+                        0b1110 => match_info::Priority::Right,
+                        0b1111 => match_info::Priority::Left,
+                        0b1011 => match_info::Priority::None,
+                        _ => match match_info_data.priority {
+                            match_info::Priority::Right => match_info::Priority::Right,
+                            match_info::Priority::Left => match_info::Priority::Left,
+                            match_info::Priority::None => match_info::Priority::None,
+                        }
                     };
                 }
             }
-            match pins_data_rx.recv() {
-                Err(RecvError) => {}
-            }
+            // match pins_data_rx.recv() {
+            //     Err(RecvError) => {}
+            //     Ok => {}
+            // }
         }
     }
 }
@@ -94,17 +94,17 @@ struct UartData {
 
     on_timer: bool,
 
-    minutes: u8,
-    dec_seconds: u8,
-    seconds: u8,
+    minutes: u32,
+    dec_seconds: u32,
+    seconds: u32,
 
     timer_sound: bool,
-    score_left: u8,
-    score_right: u8,
-    period: u8,
+    score_left: u32,
+    score_right: u32,
+    period: u32,
 
-    yellow_card_left: u8,
-    yellow_card_right: u8,
+    yellow_card_left: u32,
+    yellow_card_right: u32,
 }
 
 impl UartData {
@@ -121,17 +121,17 @@ impl UartData {
             on_timer: src[2] >> 4 & 1 == 1,
             timer_sound: src[3] >> 4 & 1 == 1,
 
-            score_left: ((src[6] & 0b00010000) << 1) | (src[4] & 0b00011111),
-            score_right: ((src[7] & 0b00010000) << 1) | (src[5] & 0b00011111),
+            score_left: (((src[6] & 0b00010000) << 1) | (src[4] & 0b00011111)) as u32,
+            score_right: (((src[7] & 0b00010000) << 1) | (src[5] & 0b00011111)) as u32,
 
-            minutes: src[1] & 0b11,
-            dec_seconds: src[2] & 0b00001111,
-            seconds: src[3] & 0b00001111,
+            minutes: (src[1] & 0b11) as u32,
+            dec_seconds: (src[2] & 0b00001111) as u32,
+            seconds: (src[3] & 0b00001111) as u32,
 
-            period: src[6] & 0b00001111,
+            period: (src[6] & 0b00001111) as u32,
 
-            yellow_card_left: src[7] >> 2 & 0b00000011,
-            yellow_card_right: src[7] >> 0 & 0b00000011,
+            yellow_card_left: (src[7] >> 2 & 0b00000011) as u32,
+            yellow_card_right: (src[7] >> 0 & 0b00000011) as u32,
         }
     }
 }

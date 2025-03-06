@@ -16,8 +16,8 @@ mod cyrano_server;
 
 #[cfg(feature = "legacy_backend")]
 mod legacy_backend;
-#[cfg(feature = "legacy_backend")]
-mod gpio_lib;
+// #[cfg(feature = "legacy_backend")]
+// mod gpio_lib;
 
 #[cfg(feature = "slint_frontend")]
 mod layouts;
@@ -31,7 +31,7 @@ fn main() {
     let mut console_backend = console_backend::ConsoleBackend::new(Arc::clone(&match_info));
 
     #[cfg(feature = "legacy_backend")]
-    let mut legacy_backend = legacy_backend::LegacyBackend::new(tx, rx);
+    let mut legacy_backend = legacy_backend::LegacyBackend::new(Arc::clone(&match_info));
 
     #[cfg(feature = "slint_frontend")]
     let mut slint_frontend =
