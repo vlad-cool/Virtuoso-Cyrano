@@ -6,7 +6,6 @@ use std::sync::Mutex;
 use std::thread;
 
 use match_info::MatchInfo;
-use modules::Message;
 
 mod console_backend;
 mod match_info;
@@ -28,18 +27,19 @@ mod slint_frontend;
 fn main() {
     let match_info: Arc<Mutex<MatchInfo>> = Arc::new(Mutex::new(MatchInfo::new()));
 
-    let (tx, rx) = channel::<Message>();
-    let (tx_1, rx_1) = channel::<Message>();
-
     #[cfg(feature = "console_backend")]
-    let mut console_backend = console_backend::ConsoleBackend::new(tx, rx, Arc::clone(&match_info));
+    let mut console_backend = console_backend::ConsoleBackend::new(Arc::clone(&match_info));
 
     #[cfg(feature = "legacy_backend")]
     let mut legacy_backend = legacy_backend::LegacyBackend::new(tx, rx);
 
     #[cfg(feature = "slint_frontend")]
     let mut slint_frontend =
-        slint_frontend::SlintFrontend::new(tx_1, rx_1, Arc::clone(&match_info));
+        slint_frontend::SlintFrontend::new(Arc::clone(&match_info));
+
+        #[cfg(feature = "cyrano_server")]
+    let mut cyrano_server =
+        cyrano_server::CyranoServer::new(Arc::clone(&match_info), None);
 
     #[cfg(feature = "console_backend")]
     let console_backend_thread = thread::spawn(move || {
@@ -56,6 +56,11 @@ fn main() {
         slint_frontend.run();
     });
 
+    #[cfg(feature = "cyrano_server")]
+    let cyrano_server_thread = thread::spawn(move || {
+        cyrano_server.run();
+    });
+
     #[cfg(feature = "legacy_backend")]
     legacy_backend_thread.join().unwrap();
 
@@ -64,4 +69,7 @@ fn main() {
     
     #[cfg(feature = "console_backend")]
     console_backend_thread.join().unwrap();
+    
+    #[cfg(feature = "cyrano_server")]
+    cyrano_server_thread.join().unwrap();
 }

@@ -1,6 +1,8 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
-use std::sync::mpsc::{Receiver, Sender, TryRecvError};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use crate::match_info;
 use crate::modules;
@@ -9,6 +11,16 @@ enum Protocol {
     UNKNOWN,
     CYRANO1_0,
     CYRANO1_1,
+}
+
+impl Protocol {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::UNKNOWN => String::from("UNKNWN"),
+            Self::CYRANO1_0 => String::from("EFP1.0"),
+            Self::CYRANO1_1 => String::from("EFP1.1"),
+        }
+    }
 }
 
 pub enum State {
@@ -35,30 +47,53 @@ struct FencerInfo {
 }
 
 impl FencerInfo {
-    fn from_string(s: String) -> Result<Self, String> {
-        let parts: Vec<&str> = s.split('|').collect();
-
-        if parts.len() != 13 {
-            Err("Wrong number of elements in input string with fencer info".to_string())
-        } else {
-            // let general_info: Vec<&str> = parts[0].split('|').collect();
-            // todo!();
-            // Err("Not implemented".to_string()) // TODO
-            Ok(Self {
-                id: parts[1],
-                name: parts[2],   // 20
-                nation: parts[3], // 3
-                score: 0,
-                status: 0,
-                yellow_card: 0,
-                red_card: 0,
-                light: 0,
-                white_light: 0,
-                medical_interventions: 0,
-                reserve_introduction: 0,
-                p_card: 0,
-            })
+    pub fn new() -> Self {
+        Self {
+            id: String::from_str("").unwrap(),
+            name: String::from_str("").unwrap(),   // 20
+            nation: String::from_str("").unwrap(), // 3
+            score: 0,
+            status: 0,
+            yellow_card: 0,
+            red_card: 0,
+            light: 0,
+            white_light: 0,
+            medical_interventions: 0,
+            reserve_introduction: 0,
+            p_card: 0,
         }
+    }
+    //     fn from_string(s: String) -> Result<Self, String> {
+    //         let parts: Vec<&str> = s.split('|').collect();
+
+    //         if parts.len() != 13 {
+    //             Err("Wrong number of elements in input string with fencer info".to_string())
+    //         } else {
+    //             // let general_info: Vec<&str> = parts[0].split('|').collect();
+    //             // todo!();
+    //             // Err("Not implemented".to_string()) // TODO
+    //             Ok(Self {
+    //                 id: parts[1],
+    //                 name: parts[2],   // 20
+    //                 nation: parts[3], // 3
+    //                 score: 0,
+    //                 status: 0,
+    //                 yellow_card: 0,
+    //                 red_card: 0,
+    //                 light: 0,
+    //                 white_light: 0,
+    //                 medical_interventions: 0,
+    //                 reserve_introduction: 0,
+    //                 p_card: 0,
+    //             })
+    //         }
+    //     }
+
+    pub fn to_1_0_string(&self) -> String {
+        format!("|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|", self.id, self.name, self.nation, self.score, self.status, self.yellow_card, self.red_card, self.light, self.white_light, self.medical_interventions, self.reserve_introduction)
+    }
+    pub fn to_1_1_string(&self) -> String {
+        format!("|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|", self.id, self.name, self.nation, self.score, self.status, self.yellow_card, self.red_card, self.light, self.white_light, self.medical_interventions, self.reserve_introduction, self.p_card)
     }
 }
 
@@ -68,92 +103,30 @@ struct RefereeInfo {
     referee_nation: String, // 3
 }
 
-struct HelloMsg {
+struct ProtocolMessage {
     protocol: Protocol,
-    piste: String,
-    competition: String,
+    command: String,
+
+    // protocol: String,    // 6
+    // command: String,     // 6
+    piste: String,       // 8
+    competition: String, // 8
+    phase: u16,
+    poul_tab: String, // 8
+    match_number: u32,
+    round_number: u16,
+    time: String,      // 5
+    stopwatch: String, // 8
+    competition_type: u8,
+    weapon: match_info::Weapon,
+    priority: match_info::Priority,
+    state: State,
+
+    referee_info: Option<RefereeInfo>,
+
+    right_fencer: Option<FencerInfo>,
+    left_fencer: Option<FencerInfo>,
 }
-
-// struct
-
-// impl Protocol {
-//     pub fn to_string(&self) -> String {
-//         match self {
-//             Self::UNKNOWN   => String::from("UNKNWN"),
-//             Self::CYRANO1_0 => String::from("EFP1.0"),
-//             Self::CYRANO1_1 => String::from("EFP1.1"),
-//         }
-//     }
-// }
-
-// pub enum Command {
-//     HELLO,
-//     NEXT,
-//     PREV,
-//     DISP,
-//     ACK,
-//     NAK,
-// }
-
-// impl Command {
-//     pub fn to_string(&self) -> String {
-//         match self {
-//             Self::HELLO => String::from("HELLO"),
-//             Self::NEXT => String::from("NEXT"),
-//             Self::PREV => String::from("PREV"),
-//             Self::DISP => String::from("DISP"),
-//             Self::ACK => String::from("ACK"),
-//             Self::NAK => String::from("NAK"),
-//         }
-//     }
-// }
-
-// struct FencerInfo {
-//     id: u32,
-//     name: String,   // 20
-//     nation: String, // 3
-//     score: u16,
-//     status: u8,
-//     yellow_card: u8,
-//     red_card: u8,
-//     light: u8,
-//     white_light: u8,
-//     medical_interventions: u8,
-//     reserve_introduction: u8,
-//     p_card: u8,
-// }
-
-// struct RefereeInfo {
-//     referee_id: u32,
-//     referee_name: String,   // 20
-//     referee_nation: String, // 3
-// }
-
-// struct ProtocolMessage {
-//     // protocol: Protocol,
-//     // command: Command,
-
-//     protocol: String,    // 6
-//     command: String,     // 6
-
-//     piste: String,       // 8
-//     competition: String, // 8
-//     phase: u16,
-//     poul_tab: String, // 8
-//     match_number: u32,
-//     round_number: u16,
-//     time: String,      // 5
-//     stopwatch: String, // 8
-//     competition_type: u8,
-//     weapon: match_info::Weapon,
-//     priority: match_info::Priority,
-//     state: State,
-
-//     referee_info: Option<RefereeInfo>,
-
-//     right_fencer: Option<FencerInfo>,
-//     left_fencer: Option<FencerInfo>,
-// }
 
 // impl ProtocolMessage {
 //     fn from_string(s: String) -> Result<Self, String> {
@@ -195,39 +168,33 @@ struct HelloMsg {
 // }
 
 pub struct CyranoServer {
-    tx: Sender<modules::Message>,
-    rx: Receiver<modules::Message>,
+    match_info: Arc<Mutex<match_info::MatchInfo>>,
 
     udp_socket: UdpSocket,
-    match_info: match_info::MatchInfo,
 
     protocol: Protocol,
     software_ip: Option<SocketAddr>,
+
+    last_hello: Option<Instant>,
 }
 
 impl CyranoServer {
     pub const MODULE_TYPE: modules::Modules = modules::Modules::CyranoServer;
 
-    pub fn new(
-        tx: Sender<modules::Message>,
-        rx: Receiver<modules::Message>,
-        udp_port: Option<u16>,
-    ) -> Self {
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, udp_port: Option<u16>) -> Self {
         Self {
-            tx,
-            rx,
-
+            match_info: match_info,
             udp_socket: UdpSocket::bind(SocketAddr::from((
                 [0, 0, 0, 0],
                 udp_port.unwrap_or(50100),
             )))
             .expect("couldn't bind udp socket to address"),
 
-            match_info: match_info::MatchInfo::new(),
-
             protocol: Protocol::UNKNOWN,
 
             software_ip: None,
+
+            last_hello: None,
         }
     }
 
@@ -239,33 +206,64 @@ impl CyranoServer {
         loop {
             let mut buf = [0u8; 512];
             match self.udp_socket.recv_from(&mut buf) {
-                Ok((size, _src_addr)) => {
+                Ok((size, src_addr)) => {
                     println!("Got {}", String::from_utf8(buf[0..size].to_vec()).unwrap());
+
+                    let sss: String = String::from_utf8(buf.to_vec()).unwrap();
+
+                    let parts: Vec<&str> = sss.split("|").collect();
+
+                    println!("parts[2]: {}", parts[2]);
+
+                    self.protocol = match (parts[1]) {
+                        "EFP1" => Protocol::CYRANO1_0,
+                        "EFP1.1" => Protocol::CYRANO1_1,
+                        _ => Protocol::UNKNOWN,
+                    };
+
+                    self.software_ip = Some(src_addr);
+
+                    match (parts[2]) {
+                        "HELLO" => {
+                            self.last_hello = Some(Instant::now());
+
+                            self.send_full_info();
+                        }
+                        _ => {}
+                    }
                 }
                 Err(_e) => {}
             }
 
-            match self.rx.try_recv() {
-                Ok(message) => match message.message {
-                    modules::MessageType::Error(_) => {}
+            let mut match_info_data = self.match_info.lock().unwrap();
+            match match_info_data.program_state {
+                match_info::ProgramState::Exiting => break,
+                _ => {}
+            }
 
-                    modules::MessageType::MatchInfoChanged(match_info) => {
-                        self.match_info = match_info;
-                    }
-                },
-                Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => {
-                    self.tx
-                        .send(modules::Message {
-                            sender: Self::MODULE_TYPE,
-                            message: modules::MessageType::Error(
-                                String::from_str("Cyrano server RX broken").unwrap(),
-                            ),
-                        })
-                        .unwrap();
-                    break;
+            if let Some(last_hello) = self.last_hello {
+                if (Instant::now().duration_since(last_hello).as_secs() > 15) {
+                    match_info_data.cyrano_online = false;
+                } else {
+                    match_info_data.cyrano_online = true;
                 }
             }
         }
+    }
+
+    fn send_full_info(&self) {
+        let match_info_data = self.match_info.lock().unwrap();
+        let buf = format!(
+            "|{}|INFO|7|aboba|2|7|8|2||{}||{}|{}|E|",
+            self.protocol.to_string(),
+            match_info_data.timer,
+            match_info_data.weapon,
+            match_info_data.priority
+        );
+        self.udp_socket.send_to(
+            b"|||",
+            self.software_ip
+                .expect("Trying to send full hello, but target ip address is unknown"),
+        );
     }
 }

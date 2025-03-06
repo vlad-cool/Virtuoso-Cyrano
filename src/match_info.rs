@@ -32,6 +32,11 @@ impl std::fmt::Display for Weapon {
     }
 }
 
+pub enum ProgramState {
+    Running,
+    Exiting,
+}
+
 pub struct MatchInfo {
     pub weapon: Weapon,
     pub left_score: u32,
@@ -60,7 +65,9 @@ pub struct MatchInfo {
     pub right_pcard_bot: bool,
     pub right_pcard_top: bool,
 
-    pub last_cyrano_request: Option<std::time::Instant>,
+    pub cyrano_online: bool,
+
+    pub program_state: ProgramState,
 }
 
 impl MatchInfo {
@@ -93,7 +100,9 @@ impl MatchInfo {
             right_pcard_bot: false,
             right_pcard_top: false,
 
-            last_cyrano_request: None,
+            cyrano_online: false,
+
+            program_state: ProgramState::Running,
         }
     }
 }

@@ -5,15 +5,13 @@ use std::sync::Mutex;
 
 use crate::match_info;
 use crate::match_info::Priority;
+use crate::match_info::ProgramState;
 use crate::match_info::Weapon;
 use crate::modules;
 
 use crate::layouts::*;
 
 pub struct SlintFrontend {
-    tx: mpsc::Sender<modules::Message>,
-    rx: mpsc::Receiver<modules::Message>,
-
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 }
 
@@ -57,17 +55,17 @@ fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
 
     app.set_passive_counter(if match_info_data.passive_counter <= 60 { match_info_data.passive_counter as i32 } else { -1 });
     app.set_passive_indicator(match_info_data.passive_indicator as i32);
+
+    app.set_is_online(match_info_data.cyrano_online);
 }
 
 impl SlintFrontend {
     pub const MODULE_TYPE: modules::Modules = modules::Modules::SlintFrontend;
 
     pub fn new(
-        tx: mpsc::Sender<modules::Message>,
-        rx: mpsc::Receiver<modules::Message>,
         match_info: Arc<Mutex<match_info::MatchInfo>>,
     ) -> Self {
-        Self { tx, rx, match_info }
+        Self { match_info }
     }
 
     pub fn run(&mut self) {
@@ -105,5 +103,8 @@ impl SlintFrontend {
         );
 
         app.run().unwrap();
+
+        let mut match_info_data = self.match_info.lock().unwrap();
+        match_info_data.program_state = ProgramState::Exiting;
     }
 }

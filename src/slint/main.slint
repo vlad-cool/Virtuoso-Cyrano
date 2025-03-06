@@ -133,6 +133,8 @@ export component Virtuoso inherits Window {
     in property <bool> right_bot_pcard;
     in property <bool> right_top_pcard;
 
+    in property <bool> is_online;
+
     in property <bool> timer_flashing;
 
     default-font-family: "Agency FB";
@@ -159,10 +161,34 @@ export component Virtuoso inherits Window {
     }
 
     property <[{text: string, layout: TextProperties, index: int, color_disabled: brush, color_enabled: brush}]> priority_elements: [
-        { text: "P", layout: layout.prioriry-l-cap, index: -1, color_disabled: Palette.priority_dark_red, color_enabled: Palette.priority_red },
-        { text: "riority", layout: layout.priority-l-text, index: -1, color_disabled: Palette.priority_text_dark, color_enabled: Palette.priority_text_light },
-        { text: "P", layout: layout.priority-r-cap, index: 1, color_disabled: Palette.priority_dark_green, color_enabled: Palette.priority_green },
-        { text: "riority", layout: layout.priority-r-text, index: 1, color_disabled: Palette.priority_text_dark, color_enabled: Palette.priority_text_light },
+        {
+            text: "P",
+            layout: layout.prioriry-l-cap,
+            index: -1,
+            color_disabled: Palette.priority_dark_red,
+            color_enabled: Palette.priority_red
+        },
+        {
+            text: "riority",
+            layout: layout.priority-l-text,
+            index: -1,
+            color_disabled: Palette.priority_text_dark,
+            color_enabled: Palette.priority_text_light
+        },
+        {
+            text: "P",
+            layout: layout.priority-r-cap,
+            index: 1,
+            color_disabled: Palette.priority_dark_green,
+            color_enabled: Palette.priority_green
+        },
+        {
+            text: "riority",
+            layout: layout.priority-r-text,
+            index: 1,
+            color_disabled: Palette.priority_text_dark,
+            color_enabled: Palette.priority_text_light
+        },
     ];
 
     for priority_element in priority_elements: Text {
@@ -537,7 +563,7 @@ export component Virtuoso inherits Window {
         vertical-alignment: center;
         color: passive_counter >= 0 ? Palette.passive_text_light : Palette.passive_text_dark;
     }
-    
+
     Text {
         x: 1px * layout.passive-counter-sec.x;
         y: 1px * layout.passive-counter-sec.y;
@@ -558,5 +584,15 @@ export component Virtuoso inherits Window {
         border-radius: 1px * layout.passive-indicator.radius;
 
         background: passive_counter > 10 ? Palette.passive_yellow : ((passive_counter == 0 || timer_flashing) ? Palette.passive_red : Palette.background);
+    }
+
+    Rectangle {
+        x: 1px * layout.recording-indicator.x;
+        y: 1px * layout.recording-indicator.y;
+        width: 1px * layout.recording-indicator.width;
+        height: 1px * layout.recording-indicator.height;
+        border-radius: 1px * layout.recording-indicator.radius;
+
+        background: is_online ? Palette.color_labels_green : Palette.weapon_text_dark;
     }
 }

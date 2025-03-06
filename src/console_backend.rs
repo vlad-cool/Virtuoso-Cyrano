@@ -1,20 +1,16 @@
 use std::io;
-use std::sync::mpsc::RecvError;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use std::{io::Read, sync::mpsc};
 
 use slint::VecModel;
 
 use crate::match_info;
+use crate::match_info::ProgramState;
 use crate::modules;
 
 pub struct ConsoleBackend {
-    tx: mpsc::Sender<modules::Message>,
-    rx: mpsc::Receiver<modules::Message>,
-
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 }
 
@@ -157,15 +153,21 @@ impl ConsoleBackend {
     pub const MODULE_TYPE: modules::Modules = modules::Modules::ConsoleBackend;
 
     pub fn new(
-        tx: mpsc::Sender<modules::Message>,
-        rx: mpsc::Receiver<modules::Message>,
         match_info: Arc<Mutex<match_info::MatchInfo>>,
     ) -> Self {
-        Self { tx, rx, match_info }
+        Self { match_info }
     }
 
     pub fn run(&mut self) {
         loop {
+            {
+                let mut match_info_data = self.match_info.lock().unwrap();
+                match match_info_data.program_state {
+                    ProgramState::Exiting => break,
+                    _ => {},
+                }
+            }
+
             let mut input = String::new();
             io::stdin()
                 .read_line(&mut input)
