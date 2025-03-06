@@ -96,7 +96,7 @@ with open("src/layouts.rs", "w") as f:
             f.write(f"        y: {element.y - 100},\n")
             f.write(f"        width: {element.width + 200},\n")
             f.write(f"        height: {element.height + 200},\n")
-            f.write(f"        font_size: {element.font_size},\n")
+            f.write(f"        font_size: {element.font_size - 1},\n")
             f.write(f"    }},\n")
         if element.type == "rect":
             f.write(f"    {element.name}: RectangleProperties {{\n")
