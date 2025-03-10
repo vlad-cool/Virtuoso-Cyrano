@@ -1,18 +1,16 @@
 use slint::{Timer, TimerMode};
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{mpsc, Arc, Mutex};
 
-use crate::match_info;
-use crate::match_info::Priority;
-use crate::match_info::ProgramState;
-use crate::match_info::Weapon;
-use crate::modules;
+use crate::match_info::{self, Message, Priority, ProgramState, Weapon};
 
-use crate::layouts::*;
+use crate::{layouts::*, modules};
 
 pub struct SlintFrontend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
+
+    // tx_to_main: mpsc::Sender<Message>,
+    // tx_to_module: mpsc::Sender<Message>,
+    // rx_to_module: mpsc::Receiver<Message>,
 }
 
 fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
@@ -53,20 +51,33 @@ fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
     app.set_auto_score_on(match_info_data.auto_score_on);
     app.set_auto_timer_on(match_info_data.auto_timer_on);
 
-    app.set_passive_counter(if match_info_data.passive_counter <= 60 { match_info_data.passive_counter as i32 } else { -1 });
+    app.set_passive_counter(if match_info_data.passive_counter <= 60 {
+        match_info_data.passive_counter as i32
+    } else {
+        -1
+    });
     app.set_passive_indicator(match_info_data.passive_indicator as i32);
 
     app.set_is_online(match_info_data.cyrano_online);
 }
 
 impl SlintFrontend {
-    pub const MODULE_TYPE: modules::Modules = modules::Modules::SlintFrontend;
-
     pub fn new(
         match_info: Arc<Mutex<match_info::MatchInfo>>,
+        // tx_to_main: mpsc::Sender<match_info::Message>,
     ) -> Self {
-        Self { match_info }
+        // let (tx_to_module, rx_to_module) = mpsc::channel();
+        Self {
+            match_info,
+            // tx_to_main,
+            // tx_to_module,
+            // rx_to_module,
+        }
     }
+// }
+
+// impl modules::VirtuosoModule for SlintFrontend {
+    const MODULE_TYPE: modules::Modules = modules::Modules::SlintFrontend;
 
     pub fn run(&mut self) {
         let app = Virtuoso::new().unwrap();
@@ -90,7 +101,7 @@ impl SlintFrontend {
                 }
             },
         );
-        
+
         let flash_timer = Timer::default();
         flash_timer.start(
             TimerMode::Repeated,
@@ -107,4 +118,8 @@ impl SlintFrontend {
         let mut match_info_data = self.match_info.lock().unwrap();
         match_info_data.program_state = ProgramState::Exiting;
     }
+
+    // fn get_tx_to_module(&self) -> std::sync::mpsc::Sender<Message> {
+    //     self.tx_to_module.clone()
+    // }
 }

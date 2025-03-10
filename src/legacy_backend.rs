@@ -13,36 +13,30 @@ pub struct LegacyBackend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 }
 
-impl LegacyBackend {
-    pub const MODULE_TYPE: modules::Modules = modules::Modules::LegacyBackend;
+impl modules::VirtuosoModule for LegacyBackend {
+    const MODULE_TYPE: modules::Modules = modules::Modules::LegacyBackend;
 
-    pub fn new(
-        match_info: Arc<Mutex<match_info::MatchInfo>>,
-    ) -> Self {
-        Self { match_info }
-    }
-
-    pub fn run(&mut self) {
+    fn run(&mut self) {
         let (uart_data_tx, uart_data_rx) = mpsc::channel::<UartData>();
         let (pins_data_tx, pins_data_rx) = mpsc::channel::<PinsData>();
-
+    
         thread::spawn(move || {
             uart_handler(&uart_data_tx);
         });
-
+    
         thread::spawn(move || {
             pins_handler(&pins_data_tx);
         });
-
+    
         loop {
             match uart_data_rx.recv() {
                 Err(RecvError) => {}
                 Ok(msg) => {
                     let mut match_info_data = self.match_info.lock().unwrap();
-
+    
                     match_info_data.left_score = msg.score_left;
                     match_info_data.right_score = msg.score_right;
-
+    
                     if msg.symbol {
                     } else {
                         match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
@@ -75,6 +69,14 @@ impl LegacyBackend {
             //     Ok => {}
             // }
         }
+    }
+}
+
+impl LegacyBackend {
+    pub fn new(
+        match_info: Arc<Mutex<match_info::MatchInfo>>,
+    ) -> Self {
+        Self { match_info }
     }
 }
 

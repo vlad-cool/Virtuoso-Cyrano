@@ -1,15 +1,15 @@
-#![allow(unused)]
+// #![allow(unused)]
 
-use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 
 use match_info::MatchInfo;
 
+mod modules;
+
 mod console_backend;
 mod match_info;
-mod modules;
 
 #[cfg(feature = "cyrano_server")]
 mod cyrano_server;

@@ -2,9 +2,9 @@ use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use crate::match_info;
+use crate::match_info::{self, MatchInfo};
 use crate::modules;
 
 enum Protocol {
@@ -23,13 +23,13 @@ impl Protocol {
     }
 }
 
-pub enum State {
-    Fencing,
-    Halt,
-    Pause,
-    Ending,
-    Waiting,
-}
+// pub enum State {
+//     Fencing,
+//     Halt,
+//     Pause,
+//     Ending,
+//     Waiting,
+// }
 
 struct FencerInfo {
     id: String,     //8
@@ -90,43 +90,70 @@ impl FencerInfo {
     //     }
 
     pub fn to_1_0_string(&self) -> String {
-        format!("|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|", self.id, self.name, self.nation, self.score, self.status, self.yellow_card, self.red_card, self.light, self.white_light, self.medical_interventions, self.reserve_introduction)
+        format!(
+            "|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|",
+            self.id,
+            self.name,
+            self.nation,
+            self.score,
+            self.status,
+            self.yellow_card,
+            self.red_card,
+            self.light,
+            self.white_light,
+            self.medical_interventions,
+            self.reserve_introduction
+        )
     }
     pub fn to_1_1_string(&self) -> String {
-        format!("|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|", self.id, self.name, self.nation, self.score, self.status, self.yellow_card, self.red_card, self.light, self.white_light, self.medical_interventions, self.reserve_introduction, self.p_card)
+        format!(
+            "|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|",
+            self.id,
+            self.name,
+            self.nation,
+            self.score,
+            self.status,
+            self.yellow_card,
+            self.red_card,
+            self.light,
+            self.white_light,
+            self.medical_interventions,
+            self.reserve_introduction,
+            self.p_card
+        )
     }
 }
 
-struct RefereeInfo {
-    referee_id: u32,
-    referee_name: String,   // 20
-    referee_nation: String, // 3
-}
+// struct RefereeInfo {
+//     referee_id: u32,
+//     referee_name: String,   // 20
+//     referee_nation: String, // 3
+// }
 
-struct ProtocolMessage {
-    protocol: Protocol,
-    command: String,
+// struct ProtocolMessage {
+//     protocol: Protocol,
+//     command: String,
 
-    // protocol: String,    // 6
-    // command: String,     // 6
-    piste: String,       // 8
-    competition: String, // 8
-    phase: u16,
-    poul_tab: String, // 8
-    match_number: u32,
-    round_number: u16,
-    time: String,      // 5
-    stopwatch: String, // 8
-    competition_type: u8,
-    weapon: match_info::Weapon,
-    priority: match_info::Priority,
-    state: State,
+//     // protocol: String,    // 6
+//     // command: String,     // 6
+//     piste: String,       // 8
+//     competition: String, // 8
+//     phase: u16,
+//     poul_tab: String, // 8
+//     match_number: u32,
+//     round_number: u16,
+//     time: String,      // 5
+//     stopwatch: String, // 8
+//     competition_type: u8,
+//     weapon: match_info::Weapon,
+//     priority: match_info::Priority,
+//     state: State,
 
-    referee_info: Option<RefereeInfo>,
+//     referee_info: Option<RefereeInfo>,
 
-    right_fencer: Option<FencerInfo>,
-    left_fencer: Option<FencerInfo>,
-}
+//     right_fencer: Option<FencerInfo>,
+//     left_fencer: Option<FencerInfo>,
+// }
 
 // impl ProtocolMessage {
 //     fn from_string(s: String) -> Result<Self, String> {
@@ -170,17 +197,21 @@ struct ProtocolMessage {
 pub struct CyranoServer {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 
+    prev_match_info: MatchInfo,
+
     udp_socket: UdpSocket,
 
     protocol: Protocol,
     software_ip: Option<SocketAddr>,
 
     last_hello: Option<Instant>,
+    online: bool,
+
+    left_fencer: FencerInfo,
+    right_fencer: FencerInfo,
 }
 
 impl CyranoServer {
-    pub const MODULE_TYPE: modules::Modules = modules::Modules::CyranoServer;
-
     pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, udp_port: Option<u16>) -> Self {
         Self {
             match_info: match_info,
@@ -195,6 +226,13 @@ impl CyranoServer {
             software_ip: None,
 
             last_hello: None,
+
+            online: false,
+
+            left_fencer: FencerInfo::new(),
+            right_fencer: FencerInfo::new(),
+
+            prev_match_info: MatchInfo::new(),
         }
     }
 
@@ -215,7 +253,7 @@ impl CyranoServer {
 
                     println!("parts[2]: {}", parts[2]);
 
-                    self.protocol = match (parts[1]) {
+                    self.protocol = match parts[1] {
                         "EFP1" => Protocol::CYRANO1_0,
                         "EFP1.1" => Protocol::CYRANO1_1,
                         _ => Protocol::UNKNOWN,
@@ -223,7 +261,7 @@ impl CyranoServer {
 
                     self.software_ip = Some(src_addr);
 
-                    match (parts[2]) {
+                    match parts[2] {
                         "HELLO" => {
                             self.last_hello = Some(Instant::now());
 
@@ -235,16 +273,84 @@ impl CyranoServer {
                 Err(_e) => {}
             }
 
-            let mut match_info_data = self.match_info.lock().unwrap();
-            match match_info_data.program_state {
-                match_info::ProgramState::Exiting => break,
-                _ => {}
+            // match match_info_data.program_state {
+            //     match_info::ProgramState::Exiting => break,
+            //     _ => {}
+            // }
+
+            let mut data_updated = false;
+
+            {
+                let match_info_data = self.match_info.lock().unwrap();
+
+                if self.prev_match_info.weapon != match_info_data.weapon
+                    || self.prev_match_info.left_score != match_info_data.left_score
+                    || self.prev_match_info.right_score != match_info_data.right_score
+                    || self.prev_match_info.timer != match_info_data.timer
+                    || self.prev_match_info.period != match_info_data.period
+                    || self.prev_match_info.priority != match_info_data.priority
+                    || self.prev_match_info.passive_indicator != match_info_data.passive_indicator
+                    || self.prev_match_info.passive_counter != match_info_data.passive_counter
+                    || self.prev_match_info.auto_score_on != match_info_data.auto_score_on
+                    || self.prev_match_info.auto_timer_on != match_info_data.auto_timer_on
+                    || self.prev_match_info.left_red_led_on != match_info_data.left_red_led_on
+                    || self.prev_match_info.left_white_led_on != match_info_data.left_white_led_on
+                    || self.prev_match_info.right_green_led_on != match_info_data.right_green_led_on
+                    || self.prev_match_info.right_white_led_on != match_info_data.right_white_led_on
+                    || self.prev_match_info.left_caution != match_info_data.left_caution
+                    || self.prev_match_info.left_penalty != match_info_data.left_penalty
+                    || self.prev_match_info.right_caution != match_info_data.right_caution
+                    || self.prev_match_info.right_penalty != match_info_data.right_penalty
+                    || self.prev_match_info.left_pcard_bot != match_info_data.left_pcard_bot
+                    || self.prev_match_info.left_pcard_top != match_info_data.left_pcard_top
+                    || self.prev_match_info.right_pcard_bot != match_info_data.right_pcard_bot
+                    || self.prev_match_info.right_pcard_top != match_info_data.right_pcard_top
+                {
+                    self.left_fencer.score = match_info_data.left_score as u16;
+                    self.right_fencer.score = match_info_data.right_score as u16;
+                    // self.prev_match_info = match_info_data;
+
+                    // self.prev_match_info.weapon = match_info_data.weapon;
+                    self.prev_match_info.left_score = match_info_data.left_score;
+                    self.prev_match_info.right_score = match_info_data.right_score;
+                    self.prev_match_info.timer = match_info_data.timer;
+                    self.prev_match_info.period = match_info_data.period;
+                    // self.prev_match_info.priority = match_info_data.priority;
+                    self.prev_match_info.passive_indicator = match_info_data.passive_indicator;
+                    self.prev_match_info.passive_counter = match_info_data.passive_counter;
+                    self.prev_match_info.auto_score_on = match_info_data.auto_score_on;
+                    self.prev_match_info.auto_timer_on = match_info_data.auto_timer_on;
+                    self.prev_match_info.left_red_led_on = match_info_data.left_red_led_on;
+                    self.prev_match_info.left_white_led_on = match_info_data.left_white_led_on;
+                    self.prev_match_info.right_green_led_on = match_info_data.right_green_led_on;
+                    self.prev_match_info.right_white_led_on = match_info_data.right_white_led_on;
+                    self.prev_match_info.left_caution = match_info_data.left_caution;
+                    self.prev_match_info.left_penalty = match_info_data.left_penalty;
+                    self.prev_match_info.right_caution = match_info_data.right_caution;
+                    self.prev_match_info.right_penalty = match_info_data.right_penalty;
+                    self.prev_match_info.left_pcard_bot = match_info_data.left_pcard_bot;
+                    self.prev_match_info.left_pcard_top = match_info_data.left_pcard_top;
+                    self.prev_match_info.right_pcard_bot = match_info_data.right_pcard_bot;
+                    self.prev_match_info.right_pcard_top = match_info_data.right_pcard_top;
+
+                    data_updated = true;
+                }
+            }
+
+            if data_updated {
+                self.send_full_info();
             }
 
             if let Some(last_hello) = self.last_hello {
-                if (Instant::now().duration_since(last_hello).as_secs() > 15) {
+                if Instant::now().duration_since(last_hello).as_secs() > 15 && self.online == true {
+                    let mut match_info_data = self.match_info.lock().unwrap();
+                    self.online = false;
                     match_info_data.cyrano_online = false;
-                } else {
+                } else if Instant::now().duration_since(last_hello).as_secs() <= 15
+                    && self.online == false
+                {
+                    let mut match_info_data = self.match_info.lock().unwrap();
+                    self.online = true;
                     match_info_data.cyrano_online = true;
                 }
             }
@@ -254,16 +360,28 @@ impl CyranoServer {
     fn send_full_info(&self) {
         let match_info_data = self.match_info.lock().unwrap();
         let buf = format!(
-            "|{}|INFO|7|aboba|2|7|8|2||{}||{}|{}|E|",
+            "|{}|INFO|7|aboba|2|7|8|2||{}||{}|{}|E||||%{}%{}",
             self.protocol.to_string(),
             match_info_data.timer,
             match_info_data.weapon,
-            match_info_data.priority
+            match_info_data.priority,
+            match self.protocol {
+                Protocol::UNKNOWN => String::from(""),
+                Protocol::CYRANO1_0 => self.right_fencer.to_1_0_string(),
+                Protocol::CYRANO1_1 => self.right_fencer.to_1_1_string(),
+            },
+            match self.protocol {
+                Protocol::UNKNOWN => String::from(""),
+                Protocol::CYRANO1_0 => self.left_fencer.to_1_0_string(),
+                Protocol::CYRANO1_1 => self.left_fencer.to_1_1_string(),
+            },
         );
-        self.udp_socket.send_to(
-            b"|||",
-            self.software_ip
-                .expect("Trying to send full hello, but target ip address is unknown"),
-        );
+        println!("{}", buf);
+        if let Some(dest_ip) = self.software_ip {
+            match self.udp_socket.send_to(buf.as_bytes(), dest_ip) {
+                Ok(_) => {}
+                Err(e) => println!("Failed to send UDP packet, error {}", e),
+            }
+        }
     }
 }

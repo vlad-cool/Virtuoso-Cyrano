@@ -1,4 +1,4 @@
-use crate::match_info::{MatchInfo, Priority, Weapon};
+use crate::match_info;
 
 pub enum Modules {
     CyranoServer,
@@ -9,6 +9,8 @@ pub enum Modules {
     VideoRecorder,
 }
 
-pub trait ModuleOperations {
-    fn run(&self);
+pub trait VirtuosoModule {
+    const MODULE_TYPE: Modules;
+    fn run(&mut self);
+    fn get_tx_to_module(&self) -> std::sync::mpsc::Sender<match_info::Message>;
 }

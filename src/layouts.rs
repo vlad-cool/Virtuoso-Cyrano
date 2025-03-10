@@ -1,3 +1,4 @@
+// Genetated file
 slint::slint!(export { Virtuoso } from "src/slint/main.slint";);
 
 pub const LAYOUT_1920X480 : Layout = Layout {
