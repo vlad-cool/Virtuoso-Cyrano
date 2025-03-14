@@ -1,8 +1,7 @@
 use slint::{Timer, TimerMode};
-use std::clone;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 
-use crate::match_info::{self, Message};
+use crate::match_info;
 use crate::modules;
 
 use crate::layouts::*;
@@ -72,7 +71,7 @@ fn update_data(
 ) -> u32 {
     let match_info_data = match_info.lock().unwrap();
 
-    if (match_info_data.modified_count == match_info_modified_count) {
+    if match_info_data.modified_count == match_info_modified_count {
         return match_info_modified_count;
     } else {
         app.set_left_score(match_info_data.left_score as i32);

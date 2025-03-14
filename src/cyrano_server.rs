@@ -1,10 +1,10 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::match_info::{self, MatchInfo};
+use crate::match_info;
 use crate::modules::{self, VirtuosoModule};
 
 enum Protocol {
@@ -190,7 +190,7 @@ impl VirtuosoModule for CyranoServer {
                 Err(_e) => {}
             }
 
-            let mut data_updated = false;
+            let data_updated: bool;
             
             {
                 let match_info_data = self.match_info.lock().unwrap();

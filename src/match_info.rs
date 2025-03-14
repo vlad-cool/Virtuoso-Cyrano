@@ -1,17 +1,3 @@
-use crate::modules::Modules;
-
-#[derive(Clone)]
-pub enum MessageContent {
-    MatchInfoUpdated,
-    Exit,
-}
-
-#[derive(Clone)]
-pub struct Message {
-    pub sender: Modules,
-    pub msg: MessageContent,
-}
-
 #[derive(PartialEq)]
 #[derive(Clone, Copy)]
 pub enum Priority {

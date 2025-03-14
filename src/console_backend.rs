@@ -1,10 +1,8 @@
 use std::io;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 
-use log;
-
-use crate::match_info::{self, MessageContent};
-use crate::modules::{self, VirtuosoModule};
+use crate::match_info;
+use crate::modules;
 
 pub struct ConsoleBackend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,

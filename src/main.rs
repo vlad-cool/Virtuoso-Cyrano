@@ -1,8 +1,5 @@
-#![allow(unused)]
-
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::thread::JoinHandle;
 
 use match_info::MatchInfo;
 
@@ -27,7 +24,7 @@ mod layouts;
 mod slint_frontend;
 
 fn main() {
-    let match_info: Arc<Mutex<MatchInfo>> = Arc::new((Mutex::new(MatchInfo::new())));
+    let match_info: Arc<Mutex<MatchInfo>> = Arc::new(Mutex::new(MatchInfo::new()));
 
     #[cfg(feature = "console_backend")]
     let mut console_backend = console_backend::ConsoleBackend::new(Arc::clone(&match_info));

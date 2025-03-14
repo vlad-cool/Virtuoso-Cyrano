@@ -1,5 +1,3 @@
-use crate::match_info;
-
 #[derive(Clone)]
 #[derive(PartialEq)]
 pub enum Modules {
