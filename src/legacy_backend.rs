@@ -1,10 +1,9 @@
 use serial::{self, SerialPort};
 use std::sync::mpsc::RecvError;
-use std::sync::Mutex;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, Condvar};
 use std::thread;
 use std::time::Duration;
-use std::{io::Read, sync::mpsc};
+use std::io::Read;
 
 use crate::match_info;
 use crate::modules;
@@ -14,11 +13,7 @@ pub struct LegacyBackend {
 }
 
 impl modules::VirtuosoModule for LegacyBackend {
-    const MODULE_TYPE: modules::Modules = modules::Modules::LegacyBackend;
-
     fn run(&mut self) {
-        let (uart_data_tx, uart_data_rx) = mpsc::channel::<UartData>();
-        let (pins_data_tx, pins_data_rx) = mpsc::channel::<PinsData>();
     
         thread::spawn(move || {
             uart_handler(&uart_data_tx);

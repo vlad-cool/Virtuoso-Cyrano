@@ -1,9 +1,8 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::mpsc;
-use std::time::Instant;
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::match_info::{self, MatchInfo};
 use crate::modules::{self, VirtuosoModule};
@@ -196,10 +195,6 @@ impl FencerInfo {
 // }
 
 pub struct CyranoServer {
-    tx_to_main: mpsc::Sender<match_info::Message>,
-    tx_to_module: mpsc::Sender<match_info::Message>,
-    rx_to_module: mpsc::Receiver<match_info::Message>,
-    
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 
     prev_match_info: MatchInfo,
@@ -217,8 +212,6 @@ pub struct CyranoServer {
 }
 
 impl VirtuosoModule for CyranoServer {
-    // const MODULE_TYPE: modules::Modules = modules::Modules::CyranoServer;
-
     fn run(&mut self) {
         self.udp_socket
             .set_nonblocking(true)
@@ -256,13 +249,7 @@ impl VirtuosoModule for CyranoServer {
                 Err(_e) => {}
             }
 
-            // match match_info_data.program_state {
-            //     match_info::ProgramState::Exiting => break,
-            //     _ => {}
-            // }
-
             let mut data_updated = false;
-
             {
                 let match_info_data = self.match_info.lock().unwrap();
 
@@ -337,12 +324,9 @@ impl VirtuosoModule for CyranoServer {
                     match_info_data.cyrano_online = true;
                 }
             }
+
+            thread::sleep(Duration::from_millis(50));
         }
-    }
-
-
-    fn get_tx_to_module(&self) -> std::sync::mpsc::Sender<match_info::Message> {
-        self.tx_to_module.clone()
     }
 
     fn get_module_type(&self) -> modules::Modules {
@@ -351,13 +335,9 @@ impl VirtuosoModule for CyranoServer {
 }
 
 impl CyranoServer {
-    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, tx_to_main: mpsc::Sender<match_info::Message>, udp_port: Option<u16>) -> Self {
-        let (tx_to_module, rx_to_module) = mpsc::channel();
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, udp_port: Option<u16>) -> Self {
         Self {
             match_info: match_info,
-            tx_to_main,
-            tx_to_module,
-            rx_to_module,
             udp_socket: UdpSocket::bind(SocketAddr::from((
                 [0, 0, 0, 0],
                 udp_port.unwrap_or(50100),

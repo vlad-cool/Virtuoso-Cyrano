@@ -1,5 +1,5 @@
 use std::io;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, Condvar};
 
 use log;
 
@@ -8,9 +8,6 @@ use crate::modules::{self, VirtuosoModule};
 
 pub struct ConsoleBackend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
-    tx_to_main: mpsc::Sender<match_info::Message>,
-    tx_to_module: mpsc::Sender<match_info::Message>,
-    rx_to_module: mpsc::Receiver<match_info::Message>,
 }
 
 #[derive(Debug)]
@@ -151,14 +148,9 @@ fn parse_command(input: &str) -> Command {
 impl ConsoleBackend {
     pub fn new(
         match_info: Arc<Mutex<match_info::MatchInfo>>,
-        tx_to_main: mpsc::Sender<match_info::Message>,
     ) -> Self {
-        let (tx_to_module, rx_to_module) = mpsc::channel();
         Self {
             match_info,
-            tx_to_main,
-            tx_to_module,
-            rx_to_module,
         }
     }
 
@@ -212,13 +204,13 @@ impl ConsoleBackend {
             Field::Unknown => println!("Unknown field"),
         }
 
-        match self.tx_to_main.send(match_info::Message {
-            sender: (self.get_module_type()),
-            msg: (MessageContent::MatchInfoUpdated),
-        }) {
-            Ok(_) => {},
-            Err(_) => {log::error!("Failed to send message, reciever is gone")},
-        };
+        // match self.tx_to_main.send(match_info::Message {
+        //     sender: (self.get_module_type()),
+        //     msg: (MessageContent::MatchInfoUpdated),
+        // }) {
+        //     Ok(_) => {},
+        //     Err(_) => {log::error!("Failed to send message, reciever is gone")},
+        // };
     }
 
     fn print_field(&self, field: Field) {
@@ -261,18 +253,8 @@ impl ConsoleBackend {
 }
 
 impl modules::VirtuosoModule for ConsoleBackend {
-    // const MODULE_TYPE: modules::Modules = modules::Modules::ConsoleBackend;
-
     fn run(&mut self) {
         loop {
-            // {
-            //     let mut match_info_data = self.match_info.lock().unwrap();
-            //     match match_info_data.program_state {
-            //         ProgramState::Exiting => break,
-            //         _ => {},
-            //     }
-            // }
-
             let mut input = String::new();
             io::stdin()
                 .read_line(&mut input)
@@ -292,10 +274,6 @@ impl modules::VirtuosoModule for ConsoleBackend {
                 Command::Unknown => println!("Unknown command or invalid format"),
             }
         }
-    }
-
-    fn get_tx_to_module(&self) -> std::sync::mpsc::Sender<match_info::Message> {
-        self.tx_to_module.clone()
     }
 
     fn get_module_type(&self) -> modules::Modules {

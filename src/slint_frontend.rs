@@ -1,7 +1,6 @@
 use slint::{Timer, TimerMode};
 use std::clone;
-use std::sync::mpsc::TryRecvError;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 use crate::match_info::{self, Message};
 use crate::modules;
@@ -10,35 +9,21 @@ use crate::layouts::*;
 
 pub struct SlintFrontend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
-    tx_to_main: mpsc::Sender<match_info::Message>,
-    message_handler: Arc<Mutex<MessageHandler>>,
 }
 
 impl SlintFrontend {
-    pub fn new(
-        match_info: Arc<Mutex<match_info::MatchInfo>>,
-        tx_to_main: mpsc::Sender<match_info::Message>,
-    ) -> Self {
-        // let (tx_to_module, rx_to_module) = mpsc::channel();
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>) -> Self {
         Self {
             match_info: match_info,
-            tx_to_main: tx_to_main,
-            message_handler: Arc::new(Mutex::new(MessageHandler::new())),
         }
     }
 }
 
 impl modules::VirtuosoModule for SlintFrontend {
-    // const MODULE_TYPE: modules::Modules = modules::Modules::SlintFrontend;
-
     fn run(&mut self) {
         let app = Virtuoso::new().unwrap();
 
         app.set_layout(LAYOUT_1920X480);
-
-        // let rx_to_module = self.rx_to_module;
-
-        // self.update_data(Weak(self.rx_to_module), &self.match_info, &app);
 
         let weak_app_1 = app.as_weak();
         let weak_app_2 = app.as_weak();
@@ -46,14 +31,16 @@ impl modules::VirtuosoModule for SlintFrontend {
 
         let match_info_clone = self.match_info.clone();
 
-        let message_handler_1 = self.message_handler.clone();
-
         timer.start(
             TimerMode::Repeated,
             std::time::Duration::from_millis(100),
             move || {
                 if let Some(app) = weak_app_1.upgrade() {
-                    message_handler_1.lock().unwrap().update_data(&match_info_clone, &app);
+                    // message_handler_1
+                    //     .lock()
+                    //     .unwrap()
+                    //     .update_data(&match_info_clone, &app);
+                    update_data(&match_info_clone, &app);
                 }
             },
         );
@@ -75,45 +62,13 @@ impl modules::VirtuosoModule for SlintFrontend {
         match_info_data.program_state = match_info::ProgramState::Exiting;
     }
 
-    fn get_tx_to_module(&self) -> std::sync::mpsc::Sender<match_info::Message> {
-        self.message_handler.lock().unwrap().tx_to_module.clone()
-    }
-
     fn get_module_type(&self) -> modules::Modules {
         modules::Modules::SlintFrontend
     }
 }
 
-impl SlintFrontend {}
-
-struct MessageHandler {
-    tx_to_module: mpsc::Sender<match_info::Message>,
-    rx_to_module: mpsc::Receiver<match_info::Message>,
-}
-
-impl MessageHandler {
-    pub fn new() -> Self {
-        let (tx_to_module, rx_to_module) = mpsc::channel();
-        Self {
-            tx_to_module,
-            rx_to_module,
-        }
-    }
-
-    pub fn update_data(&self, match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
-        match self.rx_to_module.try_recv() {
-            Ok(msg) => {
-                match msg.msg {
-                    match_info::MessageContent::MatchInfoUpdated => {}
-                    match_info::MessageContent::Exit => {return} // TODO good thread exit
-                }
-            }
-            Err(err) => match err {
-                TryRecvError::Disconnected => return,
-                TryRecvError::Empty => return,
-            },
-        }
-
+// impl SlintFrontend {
+    fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
         let match_info_data = match_info.lock().unwrap();
         app.set_left_score(match_info_data.left_score as i32);
         app.set_right_score(match_info_data.right_score as i32);
@@ -160,4 +115,4 @@ impl MessageHandler {
 
         app.set_is_online(match_info_data.cyrano_online);
     }
-}
+// }
