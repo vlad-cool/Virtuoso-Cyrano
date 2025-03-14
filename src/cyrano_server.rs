@@ -2,10 +2,11 @@ use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::mpsc;
 use std::time::Instant;
 
 use crate::match_info::{self, MatchInfo};
-use crate::modules;
+use crate::modules::{self, VirtuosoModule};
 
 enum Protocol {
     UNKNOWN,
@@ -195,6 +196,10 @@ impl FencerInfo {
 // }
 
 pub struct CyranoServer {
+    tx_to_main: mpsc::Sender<match_info::Message>,
+    tx_to_module: mpsc::Sender<match_info::Message>,
+    rx_to_module: mpsc::Receiver<match_info::Message>,
+    
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 
     prev_match_info: MatchInfo,
@@ -211,32 +216,10 @@ pub struct CyranoServer {
     right_fencer: FencerInfo,
 }
 
-impl CyranoServer {
-    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, udp_port: Option<u16>) -> Self {
-        Self {
-            match_info: match_info,
-            udp_socket: UdpSocket::bind(SocketAddr::from((
-                [0, 0, 0, 0],
-                udp_port.unwrap_or(50100),
-            )))
-            .expect("couldn't bind udp socket to address"),
+impl VirtuosoModule for CyranoServer {
+    // const MODULE_TYPE: modules::Modules = modules::Modules::CyranoServer;
 
-            protocol: Protocol::UNKNOWN,
-
-            software_ip: None,
-
-            last_hello: None,
-
-            online: false,
-
-            left_fencer: FencerInfo::new(),
-            right_fencer: FencerInfo::new(),
-
-            prev_match_info: MatchInfo::new(),
-        }
-    }
-
-    pub fn run(&mut self) {
+    fn run(&mut self) {
         self.udp_socket
             .set_nonblocking(true)
             .expect("Failed to set udp socket nonblocking");
@@ -310,12 +293,12 @@ impl CyranoServer {
                     self.right_fencer.score = match_info_data.right_score as u16;
                     // self.prev_match_info = match_info_data;
 
-                    // self.prev_match_info.weapon = match_info_data.weapon;
+                    self.prev_match_info.weapon = match_info_data.weapon;
                     self.prev_match_info.left_score = match_info_data.left_score;
                     self.prev_match_info.right_score = match_info_data.right_score;
                     self.prev_match_info.timer = match_info_data.timer;
                     self.prev_match_info.period = match_info_data.period;
-                    // self.prev_match_info.priority = match_info_data.priority;
+                    self.prev_match_info.priority = match_info_data.priority;
                     self.prev_match_info.passive_indicator = match_info_data.passive_indicator;
                     self.prev_match_info.passive_counter = match_info_data.passive_counter;
                     self.prev_match_info.auto_score_on = match_info_data.auto_score_on;
@@ -354,6 +337,45 @@ impl CyranoServer {
                     match_info_data.cyrano_online = true;
                 }
             }
+        }
+    }
+
+
+    fn get_tx_to_module(&self) -> std::sync::mpsc::Sender<match_info::Message> {
+        self.tx_to_module.clone()
+    }
+
+    fn get_module_type(&self) -> modules::Modules {
+        modules::Modules::CyranoServer
+    }
+}
+
+impl CyranoServer {
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, tx_to_main: mpsc::Sender<match_info::Message>, udp_port: Option<u16>) -> Self {
+        let (tx_to_module, rx_to_module) = mpsc::channel();
+        Self {
+            match_info: match_info,
+            tx_to_main,
+            tx_to_module,
+            rx_to_module,
+            udp_socket: UdpSocket::bind(SocketAddr::from((
+                [0, 0, 0, 0],
+                udp_port.unwrap_or(50100),
+            )))
+            .expect("couldn't bind udp socket to address"),
+
+            protocol: Protocol::UNKNOWN,
+
+            software_ip: None,
+
+            last_hello: None,
+
+            online: false,
+
+            left_fencer: FencerInfo::new(),
+            right_fencer: FencerInfo::new(),
+
+            prev_match_info: MatchInfo::new(),
         }
     }
 

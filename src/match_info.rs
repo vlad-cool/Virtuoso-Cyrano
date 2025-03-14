@@ -1,22 +1,23 @@
-pub enum Message {
+use crate::modules::Modules;
+
+#[derive(Clone)]
+pub enum MessageContent {
     MatchInfoUpdated,
+    Exit,
 }
 
+#[derive(Clone)]
+pub struct Message {
+    pub sender: Modules,
+    pub msg: MessageContent,
+}
+
+#[derive(PartialEq)]
+#[derive(Clone, Copy)]
 pub enum Priority {
     Left,
     None,
     Right,
-}
-
-impl PartialEq for Priority {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Priority::Left, Priority::Left) => true,
-            (Priority::None, Priority::None) => true,
-            (Priority::Right, Priority::Right) => true,
-            _ => false,
-        }
-    }
 }
 
 impl std::fmt::Display for Priority {
@@ -29,23 +30,13 @@ impl std::fmt::Display for Priority {
     }
 }
 
+#[derive(PartialEq)]
+#[derive(Clone, Copy)]
 pub enum Weapon {
     Unknown,
     Epee,
     Sabre,
     Fleuret,
-}
-
-impl PartialEq for Weapon {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Weapon::Unknown, Weapon::Unknown) => true,
-            (Weapon::Epee, Weapon::Epee) => true,
-            (Weapon::Sabre, Weapon::Sabre) => true,
-            (Weapon::Fleuret, Weapon::Fleuret) => true,
-            _ => false,
-        }
-    }
 }
 
 impl std::fmt::Display for Weapon {
