@@ -1,6 +1,6 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -196,8 +196,7 @@ impl FencerInfo {
 
 pub struct CyranoServer {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
-
-    prev_match_info: MatchInfo,
+    match_info_modified_count: u32,
 
     udp_socket: UdpSocket,
 
@@ -253,58 +252,61 @@ impl VirtuosoModule for CyranoServer {
             {
                 let match_info_data = self.match_info.lock().unwrap();
 
-                if self.prev_match_info.weapon != match_info_data.weapon
-                    || self.prev_match_info.left_score != match_info_data.left_score
-                    || self.prev_match_info.right_score != match_info_data.right_score
-                    || self.prev_match_info.timer != match_info_data.timer
-                    || self.prev_match_info.period != match_info_data.period
-                    || self.prev_match_info.priority != match_info_data.priority
-                    || self.prev_match_info.passive_indicator != match_info_data.passive_indicator
-                    || self.prev_match_info.passive_counter != match_info_data.passive_counter
-                    || self.prev_match_info.auto_score_on != match_info_data.auto_score_on
-                    || self.prev_match_info.auto_timer_on != match_info_data.auto_timer_on
-                    || self.prev_match_info.left_red_led_on != match_info_data.left_red_led_on
-                    || self.prev_match_info.left_white_led_on != match_info_data.left_white_led_on
-                    || self.prev_match_info.right_green_led_on != match_info_data.right_green_led_on
-                    || self.prev_match_info.right_white_led_on != match_info_data.right_white_led_on
-                    || self.prev_match_info.left_caution != match_info_data.left_caution
-                    || self.prev_match_info.left_penalty != match_info_data.left_penalty
-                    || self.prev_match_info.right_caution != match_info_data.right_caution
-                    || self.prev_match_info.right_penalty != match_info_data.right_penalty
-                    || self.prev_match_info.left_pcard_bot != match_info_data.left_pcard_bot
-                    || self.prev_match_info.left_pcard_top != match_info_data.left_pcard_top
-                    || self.prev_match_info.right_pcard_bot != match_info_data.right_pcard_bot
-                    || self.prev_match_info.right_pcard_top != match_info_data.right_pcard_top
-                {
-                    self.left_fencer.score = match_info_data.left_score as u16;
-                    self.right_fencer.score = match_info_data.right_score as u16;
-                    // self.prev_match_info = match_info_data;
+                // if self.prev_match_info.weapon != match_info_data.weapon
+                //     || self.prev_match_info.left_score != match_info_data.left_score
+                //     || self.prev_match_info.right_score != match_info_data.right_score
+                //     || self.prev_match_info.timer != match_info_data.timer
+                //     || self.prev_match_info.period != match_info_data.period
+                //     || self.prev_match_info.priority != match_info_data.priority
+                //     || self.prev_match_info.passive_indicator != match_info_data.passive_indicator
+                //     || self.prev_match_info.passive_counter != match_info_data.passive_counter
+                //     || self.prev_match_info.auto_score_on != match_info_data.auto_score_on
+                //     || self.prev_match_info.auto_timer_on != match_info_data.auto_timer_on
+                //     || self.prev_match_info.left_red_led_on != match_info_data.left_red_led_on
+                //     || self.prev_match_info.left_white_led_on != match_info_data.left_white_led_on
+                //     || self.prev_match_info.right_green_led_on != match_info_data.right_green_led_on
+                //     || self.prev_match_info.right_white_led_on != match_info_data.right_white_led_on
+                //     || self.prev_match_info.left_caution != match_info_data.left_caution
+                //     || self.prev_match_info.left_penalty != match_info_data.left_penalty
+                //     || self.prev_match_info.right_caution != match_info_data.right_caution
+                //     || self.prev_match_info.right_penalty != match_info_data.right_penalty
+                //     || self.prev_match_info.left_pcard_bot != match_info_data.left_pcard_bot
+                //     || self.prev_match_info.left_pcard_top != match_info_data.left_pcard_top
+                //     || self.prev_match_info.right_pcard_bot != match_info_data.right_pcard_bot
+                //     || self.prev_match_info.right_pcard_top != match_info_data.right_pcard_top
+                // {
+                //     self.left_fencer.score = match_info_data.left_score as u16;
+                //     self.right_fencer.score = match_info_data.right_score as u16;
+                //     // self.prev_match_info = match_info_data;
 
-                    self.prev_match_info.weapon = match_info_data.weapon;
-                    self.prev_match_info.left_score = match_info_data.left_score;
-                    self.prev_match_info.right_score = match_info_data.right_score;
-                    self.prev_match_info.timer = match_info_data.timer;
-                    self.prev_match_info.period = match_info_data.period;
-                    self.prev_match_info.priority = match_info_data.priority;
-                    self.prev_match_info.passive_indicator = match_info_data.passive_indicator;
-                    self.prev_match_info.passive_counter = match_info_data.passive_counter;
-                    self.prev_match_info.auto_score_on = match_info_data.auto_score_on;
-                    self.prev_match_info.auto_timer_on = match_info_data.auto_timer_on;
-                    self.prev_match_info.left_red_led_on = match_info_data.left_red_led_on;
-                    self.prev_match_info.left_white_led_on = match_info_data.left_white_led_on;
-                    self.prev_match_info.right_green_led_on = match_info_data.right_green_led_on;
-                    self.prev_match_info.right_white_led_on = match_info_data.right_white_led_on;
-                    self.prev_match_info.left_caution = match_info_data.left_caution;
-                    self.prev_match_info.left_penalty = match_info_data.left_penalty;
-                    self.prev_match_info.right_caution = match_info_data.right_caution;
-                    self.prev_match_info.right_penalty = match_info_data.right_penalty;
-                    self.prev_match_info.left_pcard_bot = match_info_data.left_pcard_bot;
-                    self.prev_match_info.left_pcard_top = match_info_data.left_pcard_top;
-                    self.prev_match_info.right_pcard_bot = match_info_data.right_pcard_bot;
-                    self.prev_match_info.right_pcard_top = match_info_data.right_pcard_top;
+                //     self.prev_match_info.weapon = match_info_data.weapon;
+                //     self.prev_match_info.left_score = match_info_data.left_score;
+                //     self.prev_match_info.right_score = match_info_data.right_score;
+                //     self.prev_match_info.timer = match_info_data.timer;
+                //     self.prev_match_info.period = match_info_data.period;
+                //     self.prev_match_info.priority = match_info_data.priority;
+                //     self.prev_match_info.passive_indicator = match_info_data.passive_indicator;
+                //     self.prev_match_info.passive_counter = match_info_data.passive_counter;
+                //     self.prev_match_info.auto_score_on = match_info_data.auto_score_on;
+                //     self.prev_match_info.auto_timer_on = match_info_data.auto_timer_on;
+                //     self.prev_match_info.left_red_led_on = match_info_data.left_red_led_on;
+                //     self.prev_match_info.left_white_led_on = match_info_data.left_white_led_on;
+                //     self.prev_match_info.right_green_led_on = match_info_data.right_green_led_on;
+                //     self.prev_match_info.right_white_led_on = match_info_data.right_white_led_on;
+                //     self.prev_match_info.left_caution = match_info_data.left_caution;
+                //     self.prev_match_info.left_penalty = match_info_data.left_penalty;
+                //     self.prev_match_info.right_caution = match_info_data.right_caution;
+                //     self.prev_match_info.right_penalty = match_info_data.right_penalty;
+                //     self.prev_match_info.left_pcard_bot = match_info_data.left_pcard_bot;
+                //     self.prev_match_info.left_pcard_top = match_info_data.left_pcard_top;
+                //     self.prev_match_info.right_pcard_bot = match_info_data.right_pcard_bot;
+                //     self.prev_match_info.right_pcard_top = match_info_data.right_pcard_top;
 
-                    data_updated = true;
-                }
+                //     data_updated = true;
+                // }
+
+                data_updated = self.match_info_modified_count != match_info_data.modified_count;
+                self.match_info_modified_count = match_info_data.modified_count;
             }
 
             if data_updated {
@@ -338,6 +340,8 @@ impl CyranoServer {
     pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, udp_port: Option<u16>) -> Self {
         Self {
             match_info: match_info,
+            match_info_modified_count: 0,
+
             udp_socket: UdpSocket::bind(SocketAddr::from((
                 [0, 0, 0, 0],
                 udp_port.unwrap_or(50100),
@@ -352,10 +356,9 @@ impl CyranoServer {
 
             online: false,
 
+
             left_fencer: FencerInfo::new(),
             right_fencer: FencerInfo::new(),
-
-            prev_match_info: MatchInfo::new(),
         }
     }
 

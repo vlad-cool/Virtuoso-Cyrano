@@ -30,17 +30,15 @@ impl modules::VirtuosoModule for SlintFrontend {
         let timer = Timer::default();
 
         let match_info_clone = self.match_info.clone();
+        let mut match_info_modified_count = 0u32;
 
         timer.start(
             TimerMode::Repeated,
             std::time::Duration::from_millis(100),
             move || {
                 if let Some(app) = weak_app_1.upgrade() {
-                    // message_handler_1
-                    //     .lock()
-                    //     .unwrap()
-                    //     .update_data(&match_info_clone, &app);
-                    update_data(&match_info_clone, &app);
+                    match_info_modified_count =
+                        update_data(&match_info_clone, &app, match_info_modified_count);
                 }
             },
         );
@@ -68,8 +66,16 @@ impl modules::VirtuosoModule for SlintFrontend {
 }
 
 // impl SlintFrontend {
-    fn update_data(match_info: &Arc<Mutex<match_info::MatchInfo>>, app: &Virtuoso) {
-        let match_info_data = match_info.lock().unwrap();
+fn update_data(
+    match_info: &Arc<Mutex<match_info::MatchInfo>>,
+    app: &Virtuoso,
+    match_info_modified_count: u32,
+) -> u32 {
+    let match_info_data = match_info.lock().unwrap();
+
+    if (match_info_data.modified_count == match_info_modified_count) {
+        return match_info_modified_count;
+    } else {
         app.set_left_score(match_info_data.left_score as i32);
         app.set_right_score(match_info_data.right_score as i32);
         app.set_timer(match_info_data.timer as i32);
@@ -114,5 +120,7 @@ impl modules::VirtuosoModule for SlintFrontend {
         app.set_passive_indicator(match_info_data.passive_indicator as i32);
 
         app.set_is_online(match_info_data.cyrano_online);
+        return match_info_data.modified_count;
     }
+}
 // }

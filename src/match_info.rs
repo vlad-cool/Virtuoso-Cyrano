@@ -56,6 +56,8 @@ pub enum ProgramState {
 }
 
 pub struct MatchInfo {
+    pub modified_count: u32,
+
     pub weapon: Weapon,
     pub left_score: u32,
     pub right_score: u32,
@@ -91,6 +93,7 @@ pub struct MatchInfo {
 impl MatchInfo {
     pub fn new() -> Self {
         Self {
+            modified_count: 0,
             weapon: Weapon::Epee,
             left_score: 0,
             right_score: 0,

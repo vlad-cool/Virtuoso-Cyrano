@@ -59,10 +59,6 @@ impl modules::VirtuosoModule for LegacyBackend {
                     };
                 }
             }
-            // match pins_data_rx.recv() {
-            //     Err(RecvError) => {}
-            //     Ok => {}
-            // }
         }
     }
 }

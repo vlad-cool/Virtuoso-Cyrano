@@ -1,5 +1,5 @@
 use std::io;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 
 use log;
 
@@ -146,12 +146,8 @@ fn parse_command(input: &str) -> Command {
 }
 
 impl ConsoleBackend {
-    pub fn new(
-        match_info: Arc<Mutex<match_info::MatchInfo>>,
-    ) -> Self {
-        Self {
-            match_info,
-        }
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>) -> Self {
+        Self { match_info }
     }
 
     fn set_field(&mut self, field: Field, value: u32) {
@@ -201,16 +197,13 @@ impl ConsoleBackend {
             Field::PassiveCounter => match_info_data.passive_counter = value,
             Field::PassiveIndicator => match_info_data.passive_indicator = value,
 
-            Field::Unknown => println!("Unknown field"),
+            Field::Unknown => {
+                println!("Unknown field");
+                return;
+            }
         }
 
-        // match self.tx_to_main.send(match_info::Message {
-        //     sender: (self.get_module_type()),
-        //     msg: (MessageContent::MatchInfoUpdated),
-        // }) {
-        //     Ok(_) => {},
-        //     Err(_) => {log::error!("Failed to send message, reciever is gone")},
-        // };
+        match_info_data.modified_count += 1;
     }
 
     fn print_field(&self, field: Field) {

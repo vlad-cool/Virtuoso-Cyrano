@@ -27,7 +27,7 @@ mod layouts;
 mod slint_frontend;
 
 fn main() {
-    let match_info: Arc<Mutex<MatchInfo>> = Arc::new(Mutex::new(MatchInfo::new()));
+    let match_info: Arc<Mutex<MatchInfo>> = Arc::new((Mutex::new(MatchInfo::new())));
 
     #[cfg(feature = "console_backend")]
     let mut console_backend = console_backend::ConsoleBackend::new(Arc::clone(&match_info));
@@ -40,6 +40,8 @@ fn main() {
 
     #[cfg(feature = "cyrano_server")]
     let mut cyrano_server = cyrano_server::CyranoServer::new(Arc::clone(&match_info), None);
+
+
 
     #[cfg(feature = "console_backend")]
     let console_backend_thread = thread::spawn(move || {
@@ -61,52 +63,7 @@ fn main() {
         cyrano_server.run();
     });
 
-    // let modules: Vec<Rc<modules::Modules>> = vec![
-
-    // ];
-
-    // for mut module in modules.as_slice() {
-    //     threads.push(thread::spawn(move || {
-    //         module.run();
-    //     }));
-    // }
-
-    // loop {
-    // match rx_to_main.recv() {
-    //     Ok(msg) => {
-
-    //         // for module in [Box::<modules::VirtuosoModule>(slint_frontend), Box::new(console_backend)] {
-    //         //     if module.get_module_type() == msg.sender {
-    //         //         continue;
-    //         //     }
-    //         // }
-
-    //         if msg.sender == modules::Modules::ConsoleBackend {
-    //             slint_frontend_tx.send(msg.clone());
-    //             cyrano_server_tx.send(msg.clone());
-    //         }
-
-    //         if msg.sender == modules::Modules::SlintFrontend {
-    //             console_backend_tx.send(msg.clone());
-    //             cyrano_server_tx.send(msg.clone());
-    //         }
-
-    //         if msg.sender == modules::Modules::CyranoServer {
-    //             slint_frontend_tx.send(msg.clone());
-    //             console_backend_tx.send(msg.clone());
-    //         }
-
-    //         if let match_info::MessageContent::Exit = msg.msg {
-    //             break;
-    //         }
-    //     }
-    //     Err(_) => {}
-    // }
-    // }
-
-    // for mut thread in threads {
-    //     thread.join().unwrap();
-    // }
+    
 
     #[cfg(feature = "legacy_backend")]
     legacy_backend_thread.join().unwrap();
