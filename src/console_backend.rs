@@ -15,6 +15,8 @@ enum Field {
     LeftScore,
     RightScore,
     Time,
+    LastTenSeconds,
+    TimerRunning,
     Period,
 
     Weapon,
@@ -51,6 +53,8 @@ impl std::fmt::Display for Field {
             Field::LeftScore => write!(f, "Left Score"),
             Field::RightScore => write!(f, "Right Score"),
             Field::Time => write!(f, "Time"),
+            Field::LastTenSeconds => write!(f, "Last Ten Seconds"),
+            Field::TimerRunning => write!(f, "Timer Running"),
             Field::Period => write!(f, "Period"),
 
             Field::Weapon => write!(f, "Weapon"),
@@ -95,6 +99,8 @@ fn parse_field(input: &str) -> Field {
         "leftscore" => Field::LeftScore,
         "rightscore" => Field::RightScore,
         "time" => Field::Time,
+        "lasttenseconds" => Field::LastTenSeconds,
+        "timerrunning" => Field::TimerRunning,
         "period" => Field::Period,
 
         "weapon" => Field::Weapon,
@@ -157,6 +163,8 @@ impl ConsoleBackend {
             Field::LeftScore => match_info_data.left_score = value,
             Field::RightScore => match_info_data.right_score = value,
             Field::Time => match_info_data.timer = value,
+            Field::LastTenSeconds => match_info_data.last_ten_seconds = value > 0,
+            Field::TimerRunning => match_info_data.timer_running = value > 0,
             Field::Period => match_info_data.period = value,
 
             Field::Weapon => {
@@ -213,6 +221,8 @@ impl ConsoleBackend {
             Field::LeftScore => println!("{}", match_info_data.left_score),
             Field::RightScore => println!("{}", match_info_data.right_score),
             Field::Time => println!("{}", match_info_data.timer),
+            Field::LastTenSeconds => println!("{}", match_info_data.last_ten_seconds),
+            Field::TimerRunning => println!("{}", match_info_data.timer_running),
             Field::Period => println!("{}", match_info_data.period),
 
             Field::Weapon => println!("{}", match_info_data.weapon),

@@ -27,11 +27,11 @@ impl modules::VirtuosoModule for SlintFrontend {
 
         let weak_app_1 = app.as_weak();
         let weak_app_2 = app.as_weak();
-        let timer = Timer::default();
-
+        
         let match_info_clone = self.match_info.clone();
         let mut match_info_modified_count = 0u32;
-
+        
+        let timer = Timer::default();
         timer.start(
             TimerMode::Repeated,
             std::time::Duration::from_millis(100),
@@ -65,7 +65,6 @@ impl modules::VirtuosoModule for SlintFrontend {
     }
 }
 
-// impl SlintFrontend {
 fn update_data(
     match_info: &Arc<Mutex<match_info::MatchInfo>>,
     app: &Virtuoso,
@@ -79,6 +78,8 @@ fn update_data(
         app.set_left_score(match_info_data.left_score as i32);
         app.set_right_score(match_info_data.right_score as i32);
         app.set_timer(match_info_data.timer as i32);
+        app.set_last_ten_seconds(match_info_data.last_ten_seconds);
+        app.set_timer_running(match_info_data.timer_running);
         app.set_period(match_info_data.period as i32);
 
         app.set_weapon(match match_info_data.weapon {
@@ -123,4 +124,3 @@ fn update_data(
         return match_info_data.modified_count;
     }
 }
-// }
