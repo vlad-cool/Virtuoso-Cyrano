@@ -213,14 +213,87 @@ impl PartialEq for PinsData {
 }
 
 enum IrCommands {
-    PassiveCardLeft,
-    PassiveCardRight,
+    TimerStartStop,
+
+    AutoTimerOnOff,
+    AutoScoreOnOff,
+
+    LeftScoreIncrement,
+    LeftScoreDecrement,
+    RightScoreIncrement,
+    RightScoreDecrement,
+
+    LeftPassiveCard,
+    RightPassiveCard,
+
+    LeftPenaltyCard,
+    RightPenalty,
+
+    SecondsIncrement,
+    SecondsDecrement,
+
+    PriorityRaffle,
+
+    SetTime,
+    FlipSides,
+
+    ChangeWeapon,
+
+    Reset,
+
+    PeriodIncrement,
+
+    Unknown,
+}
+
+impl IrCommands {
+    pub fn from_int(command: u32) -> Self {
+        match command {
+            13 => IrCommands::TimerStartStop,
+
+            1 => IrCommands::AutoTimerOnOff,
+            16 => IrCommands::AutoScoreOnOff,
+
+            2 => IrCommands::LeftScoreIncrement,
+            3 => IrCommands::LeftScoreDecrement,
+            9 => IrCommands::RightScoreIncrement,
+            15 => IrCommands::RightScoreDecrement,
+
+            17 => IrCommands::LeftPassiveCard,
+            18 => IrCommands::RightPassiveCard,
+
+            4 => IrCommands::LeftPenaltyCard,
+            11 => IrCommands::RightPenalty,
+
+            14 => IrCommands::SecondsIncrement,
+            6 => IrCommands::SecondsDecrement,
+
+            12 => IrCommands::PriorityRaffle,
+
+            7 => IrCommands::SetTime,
+            0 => IrCommands::FlipSides,
+
+            5 => IrCommands::ChangeWeapon,
+
+            10 => IrCommands::Reset,
+
+            8 => IrCommands::PeriodIncrement,
+
+            _ => IrCommands::Unknown,
+        }
+    }
+}
+
+struct IrFrame {
+    new: bool,
+    address: u32,
+    command: IrCommands,
 }
 
 enum InputData {
     UartData(UartData),
     PinsData(PinsData),
-    IrCommand(IrCommands),
+    IrCommand(IrFrame),
 }
 
 fn rc5_reciever(tx: mpsc::Sender<InputData>) {
@@ -233,6 +306,8 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
 
     let mut recieve_buf: [i32; 28] = [0; 28];
     let mut index = 0;
+
+    let mut last_toggle_value = -1;
 
     for event in chip
         .get_line(line.line)
@@ -266,8 +341,7 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
             recieve_buf[index] = val;
             index += 1;
 
-            if index == 27
-            {
+            if index == 27 {
                 recieve_buf[index] = 1 - val;
                 index += 1;
             }
@@ -301,9 +375,11 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
                 }
 
                 println!(
-                    "Toggle bit: {}, Address: {}, Command: {}",
-                    toggle_bit, address, command
+                    "New: {}, Address: {}, Command: {}",
+                    toggle_bit != last_toggle_value, address, command
                 );
+
+                last_toggle_value = toggle_bit;
 
                 index = 0;
                 break;
