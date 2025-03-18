@@ -15,8 +15,8 @@ mod cyrano_server;
 
 #[cfg(feature = "legacy_backend")]
 mod legacy_backend;
-// #[cfg(feature = "legacy_backend")]
-// mod gpio_lib;
+#[cfg(feature = "legacy_backend")]
+mod gpio;
 
 #[cfg(feature = "slint_frontend")]
 mod layouts;

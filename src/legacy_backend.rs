@@ -1,9 +1,18 @@
+use gpio_cdev::{Chip, LineRequestFlags};
 use serial::{self, SerialPort};
 use std::sync::mpsc::RecvError;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
+use std::time;
 use std::time::Duration;
-use std::io::Read;
+use std::{io::Read, sync::mpsc};
+
+// use nix::poll::*;
+// use quicli::prelude::*;
+// use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
+// use structopt::StructOpt;
+use gpio_cdev::*;
 
 use crate::match_info;
 use crate::modules;
@@ -12,61 +21,78 @@ pub struct LegacyBackend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
 }
 
-impl modules::VirtuosoModule for LegacyBackend {
-    fn run(&mut self) {
-    
+// impl modules::VirtuosoModule for LegacyBackend {
+impl LegacyBackend {
+    const MODULE_TYPE: modules::Modules = modules::Modules::LegacyBackend;
+
+    pub fn run(&mut self) {
+        let (tx, rx) = mpsc::channel::<InputData>();
+
+        let tx_1 = tx.clone();
+        let tx_2 = tx.clone();
+        let tx_3 = tx.clone();
+
         thread::spawn(move || {
-            uart_handler(&uart_data_tx);
+            uart_handler(tx_1);
         });
-    
+
         thread::spawn(move || {
-            pins_handler(&pins_data_tx);
+            pins_handler(tx_2);
         });
-    
+
+        thread::spawn(move || {
+            rc5_reciever(tx_3);
+        });
+
         loop {
-            match uart_data_rx.recv() {
+            match rx.recv() {
                 Err(RecvError) => {}
-                Ok(msg) => {
-                    let mut match_info_data = self.match_info.lock().unwrap();
-    
-                    match_info_data.left_score = msg.score_left;
-                    match_info_data.right_score = msg.score_right;
-    
-                    if msg.symbol {
-                    } else {
-                        match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
-                            4
+                Ok(msg) => match msg {
+                    InputData::UartData(msg) => {
+                        let mut match_info_data = self.match_info.lock().unwrap();
+
+                        match_info_data.left_score = msg.score_left;
+                        match_info_data.right_score = msg.score_right;
+
+                        if msg.symbol {
                         } else {
-                            msg.minutes
-                        } * 100
-                            + msg.dec_seconds * 10
-                            + msg.seconds;
-                    }
-                    match_info_data.period = if msg.period > 0 && msg.period < 10 {
-                        msg.period
-                    } else {
-                        match_info_data.period
-                    };
-                    match_info_data.priority = match msg.period {
-                        0b1110 => match_info::Priority::Right,
-                        0b1111 => match_info::Priority::Left,
-                        0b1011 => match_info::Priority::None,
-                        _ => match match_info_data.priority {
-                            match_info::Priority::Right => match_info::Priority::Right,
-                            match_info::Priority::Left => match_info::Priority::Left,
-                            match_info::Priority::None => match_info::Priority::None,
+                            match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
+                                4
+                            } else {
+                                msg.minutes
+                            } * 100
+                                + msg.dec_seconds * 10
+                                + msg.seconds;
                         }
-                    };
-                }
+                        match_info_data.period = if msg.period > 0 && msg.period < 10 {
+                            msg.period
+                        } else {
+                            match_info_data.period
+                        };
+                        match_info_data.priority = match msg.period {
+                            0b1110 => match_info::Priority::Right,
+                            0b1111 => match_info::Priority::Left,
+                            0b1011 => match_info::Priority::None,
+                            _ => match match_info_data.priority {
+                                match_info::Priority::Right => match_info::Priority::Right,
+                                match_info::Priority::Left => match_info::Priority::Left,
+                                match_info::Priority::None => match_info::Priority::None,
+                            },
+                        };
+                    }
+                    _ => todo!(),
+                },
             }
+            // match pins_data_rx.recv() {
+            //     Err(RecvError) => {}
+            //     Ok => {}
+            // }
         }
     }
 }
 
 impl LegacyBackend {
-    pub fn new(
-        match_info: Arc<Mutex<match_info::MatchInfo>>,
-    ) -> Self {
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>) -> Self {
         Self { match_info }
     }
 }
@@ -129,7 +155,7 @@ impl UartData {
     }
 }
 
-fn uart_handler(tx: &mpsc::Sender<UartData>) {
+fn uart_handler(tx: mpsc::Sender<InputData>) {
     let mut port = serial::open("/dev/ttyS2").unwrap();
 
     let settings = serial::PortSettings {
@@ -161,7 +187,8 @@ fn uart_handler(tx: &mpsc::Sender<UartData>) {
                     if ind == 8 {
                         ind = 0;
 
-                        tx.send(UartData::from_8bytes(buf)).unwrap();
+                        tx.send(InputData::UartData(UartData::from_8bytes(buf)))
+                            .unwrap();
                     }
                 }
             }
@@ -185,8 +212,169 @@ impl PartialEq for PinsData {
     }
 }
 
-fn pins_handler(tx: &mpsc::Sender<PinsData>) {
-    loop {
-        thread::sleep(Duration::from_millis(10));
+enum IrCommands {
+    PassiveCardLeft,
+    PassiveCardRight,
+}
+
+enum InputData {
+    UartData(UartData),
+    PinsData(PinsData),
+    IrCommand(IrCommands),
+}
+
+fn rc5_reciever(tx: mpsc::Sender<InputData>) {
+    let line = crate::gpio::get_pin_by_phys_number(3).unwrap();
+    let mut chip = Chip::new(format!("/dev/gpiochip{}", line.chip)).unwrap();
+
+    let mut last_interrupt_time: u64;
+
+    last_interrupt_time = 0;
+
+    let mut recieve_buf: [i32; 28] = [0; 28];
+    let mut index = 0;
+
+    for event in chip
+        .get_line(line.line)
+        .unwrap()
+        .events(
+            LineRequestFlags::INPUT,
+            EventRequestFlags::BOTH_EDGES,
+            "gpioevents",
+        )
+        .unwrap()
+    {
+        let event = event.unwrap();
+
+        let mut val = match event.event_type() {
+            EventType::RisingEdge => 0,
+            EventType::FallingEdge => 1,
+        };
+        let mut count = 0;
+
+        if event.timestamp() - last_interrupt_time > 889 * 1000 * 5 / 2 {
+            recieve_buf[0] = val;
+            index = 1;
+            count = 0;
+        } else if event.timestamp() - last_interrupt_time > 889 * 1000 * 3 / 2 {
+            count = 2;
+        } else if event.timestamp() - last_interrupt_time > 889 * 1000 * 1 / 2 {
+            count = 1;
+        }
+
+        for i in 0..count {
+            recieve_buf[index] = val;
+            index += 1;
+
+            if index == 27
+            {
+                recieve_buf[index] = 1 - val;
+                index += 1;
+            }
+
+            if index == 28 {
+                for i in 0..14 {
+                    if recieve_buf[i * 2] + recieve_buf[i * 2 + 1] != 1 {
+                        println!("Bad buffer");
+                        index = 0;
+                        break;
+                    }
+                }
+            }
+
+            if index == 28 {
+                let rc5_frame: Vec<i32> = recieve_buf.iter().step_by(2).cloned().collect();
+
+                let toggle_bit = rc5_frame[2];
+
+                let mut address = 0;
+                let mut command = 0;
+
+                for i in 3..8 {
+                    address *= 2;
+                    address += rc5_frame[i];
+                }
+
+                for i in 8..14 {
+                    command *= 2;
+                    command += rc5_frame[i];
+                }
+
+                println!(
+                    "Toggle bit: {}, Address: {}, Command: {}",
+                    toggle_bit, address, command
+                );
+
+                index = 0;
+                break;
+            }
+        }
+
+        last_interrupt_time = event.timestamp();
     }
+}
+
+fn pins_handler(tx: mpsc::Sender<InputData>) {
+    // let mut chips = Vec::<Chip>::new();
+
+    // for path in &["/dev/gpiochip0", "/dev/gpiochip1"] {
+    //     if let Ok(chip) = Chip::new(path) {
+    //         chips.push(chip);
+    //     } else {
+    //         println!("Failed to open chip {}", path);
+    //     }
+    // }
+
+    // watched_lines = Vec!([
+    //     crate::gpio::get_pin_by_phys_number(7),
+    //     crate::gpio::get_pin_by_phys_number(27),
+    //     crate::gpio::get_pin_by_phys_number(32),
+    //     crate::gpio::get_pin_by_phys_number(36),
+    //     crate::gpio::get_pin_by_phys_number(37),
+    // ]);
+
+    // // Get event handles for each line to monitor.
+    // let mut evt_handles: Vec<LineEventHandle> = watched_lines
+    //     .into_iter()
+    //     .map(|off| {
+    //         let line = chips[off.chip].get_line(off.line).unwrap();
+    //         line.events(
+    //             LineRequestFlags::INPUT,
+    //             EventRequestFlags::BOTH_EDGES,
+    //             "monitor",
+    //         )
+    //         .unwrap()
+    //     })
+    //     .collect();
+
+    // let ownedfd: Vec<OwnedFd> = evt_handles
+    //     .iter()
+    //     .map(|h| unsafe { OwnedFd::from_raw_fd(h.as_raw_fd()) })
+    //     .collect();
+
+    // let mut pollfds: Vec<PollFd> = ownedfd
+    //     .iter()
+    //     .map(|fd| PollFd::new(fd, gpio_cdev::PollEventFlags::POLLIN | gpio_cdev::PollEventFlags::POLLPRI))
+    //     .collect();
+
+    // loop {
+    //     if poll(&mut pollfds, -1)? == 0 {
+    //         println!("Timeout?!?");
+    //     } else {
+    //         for i in 0..pollfds.len() {
+    //             if let Some(revts) = pollfds[i].revents() {
+    //                 let h = &mut evt_handles[i];
+    //                 if revts.contains(gpio_cdev::PollEventFlags::POLLIN) {
+    //                     let event = h.get_event().unwrap();
+    //                     println!("[{}] {:?}", h.line().offset(), event);
+
+    //                     let val = h.get_value().unwrap();
+    //                     println!("    {}", val);
+    //                 } else if revts.contains(gpio_cdev::PollEventFlags::POLLPRI) {
+    //                     println!("[{}] Got a POLLPRI", h.line().offset());
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 }
