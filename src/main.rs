@@ -1,3 +1,6 @@
+#[allow(dead_code)]
+#[allow(unused_variables)]
+
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -7,8 +10,6 @@ mod modules;
 
 mod console_backend;
 mod match_info;
-
-use crate::modules::VirtuosoModule;
 
 #[cfg(feature = "cyrano_server")]
 mod cyrano_server;

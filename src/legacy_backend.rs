@@ -1,18 +1,14 @@
-use gpio_cdev::{Chip, LineRequestFlags};
+#[allow(dead_code)]
+#[allow(unused_variables)]
+
+use gpio_cdev;
 use serial::{self, SerialPort};
 use std::sync::mpsc::RecvError;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
-use std::time;
 use std::time::Duration;
 use std::{io::Read, sync::mpsc};
-
-// use nix::poll::*;
-// use quicli::prelude::*;
-// use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
-// use structopt::StructOpt;
-use gpio_cdev::*;
 
 use crate::match_info;
 use crate::modules;
@@ -196,20 +192,14 @@ fn uart_handler(tx: mpsc::Sender<InputData>) {
     }
 }
 
+#[derive(Debug)]
+#[derive(PartialEq)]
+#[derive(Clone)]
 struct PinsData {
-    wireless: bool,          // pin 7
-    recording: bool,         // pin 18
+    wireless: bool, // pin 7
+    // recording: bool,         // pin 18
     weapon: u8,              // pin 32 * 2 + pin 36
     weapon_select_btn: bool, // pin 37
-}
-
-impl PartialEq for PinsData {
-    fn eq(&self, other: &Self) -> bool {
-        self.wireless == other.wireless
-            && self.recording == other.recording
-            && self.weapon == other.weapon
-            && self.weapon_select_btn == other.weapon_select_btn
-    }
 }
 
 enum IrCommands {
@@ -298,7 +288,7 @@ enum InputData {
 
 fn rc5_reciever(tx: mpsc::Sender<InputData>) {
     let line = crate::gpio::get_pin_by_phys_number(3).unwrap();
-    let mut chip = Chip::new(format!("/dev/gpiochip{}", line.chip)).unwrap();
+    let mut chip = gpio_cdev::Chip::new(format!("/dev/gpiochip{}", line.chip)).unwrap();
 
     let mut last_interrupt_time: u64;
 
@@ -313,17 +303,17 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
         .get_line(line.line)
         .unwrap()
         .events(
-            LineRequestFlags::INPUT,
-            EventRequestFlags::BOTH_EDGES,
+            gpio_cdev::LineRequestFlags::INPUT,
+            gpio_cdev::EventRequestFlags::BOTH_EDGES,
             "gpioevents",
         )
         .unwrap()
     {
         let event = event.unwrap();
 
-        let mut val = match event.event_type() {
-            EventType::RisingEdge => 0,
-            EventType::FallingEdge => 1,
+        let val = match event.event_type() {
+            gpio_cdev::EventType::RisingEdge => 0,
+            gpio_cdev::EventType::FallingEdge => 1,
         };
         let mut count = 0;
 
@@ -337,7 +327,7 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
             count = 1;
         }
 
-        for i in 0..count {
+        for _ in 0..count {
             recieve_buf[index] = val;
             index += 1;
 
@@ -376,8 +366,16 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
 
                 println!(
                     "New: {}, Address: {}, Command: {}",
-                    toggle_bit != last_toggle_value, address, command
+                    toggle_bit != last_toggle_value,
+                    address,
+                    command
                 );
+
+                tx.send(InputData::IrCommand(IrFrame {
+                    new: toggle_bit != last_toggle_value,
+                    address: address as u32,
+                    command: IrCommands::from_int(command as u32),
+                })).unwrap();
 
                 last_toggle_value = toggle_bit;
 
@@ -391,23 +389,79 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
 }
 
 fn pins_handler(tx: mpsc::Sender<InputData>) {
-    // let mut chips = Vec::<Chip>::new();
+    let mut chips = Vec::<gpio_cdev::Chip>::new();
 
-    // for path in &["/dev/gpiochip0", "/dev/gpiochip1"] {
-    //     if let Ok(chip) = Chip::new(path) {
-    //         chips.push(chip);
-    //     } else {
-    //         println!("Failed to open chip {}", path);
-    //     }
-    // }
+    for path in &["/dev/gpiochip0", "/dev/gpiochip1"] {
+        if let Ok(chip) = gpio_cdev::Chip::new(path) {
+            chips.push(chip);
+        } else {
+            println!("Failed to open chip {}", path);
+        }
+    }
 
-    // watched_lines = Vec!([
+    // let watched_lines = vec![[
     //     crate::gpio::get_pin_by_phys_number(7),
     //     crate::gpio::get_pin_by_phys_number(27),
     //     crate::gpio::get_pin_by_phys_number(32),
     //     crate::gpio::get_pin_by_phys_number(36),
     //     crate::gpio::get_pin_by_phys_number(37),
-    // ]);
+    // ]];
+
+    let gpio_pin_wireless = crate::gpio::get_pin_by_phys_number(7).unwrap();
+    let gpio_line_wireless = chips[gpio_pin_wireless.chip as usize]
+        .get_line(gpio_pin_wireless.line)
+        .unwrap();
+    let gpio_handle_wireless = gpio_line_wireless
+        .request(gpio_cdev::LineRequestFlags::INPUT, 0, "read-input")
+        .unwrap();
+
+    let gpio_pin_weapon_0 = crate::gpio::get_pin_by_phys_number(32).unwrap();
+    let gpio_line_weapon_0 = chips[gpio_pin_weapon_0.chip as usize]
+        .get_line(gpio_pin_weapon_0.line)
+        .unwrap();
+    let gpio_handle_weapon_0 = gpio_line_weapon_0
+        .request(gpio_cdev::LineRequestFlags::INPUT, 0, "read-input")
+        .unwrap();
+    let gpio_pin_weapon_1 = crate::gpio::get_pin_by_phys_number(36).unwrap();
+    let gpio_line_weapon_1 = chips[gpio_pin_weapon_1.chip as usize]
+        .get_line(gpio_pin_weapon_1.line)
+        .unwrap();
+    let gpio_handle_weapon_1 = gpio_line_weapon_1
+        .request(gpio_cdev::LineRequestFlags::INPUT, 0, "read-input")
+        .unwrap();
+
+    let gpio_pin_weapon_btn = crate::gpio::get_pin_by_phys_number(37).unwrap();
+    let gpio_line_weapon_btn = chips[gpio_pin_weapon_btn.chip as usize]
+        .get_line(gpio_pin_weapon_btn.line)
+        .unwrap();
+    let gpio_handle_weapon_btn = gpio_line_weapon_btn
+        .request(gpio_cdev::LineRequestFlags::INPUT, 0, "read-input")
+        .unwrap();
+
+    let mut old_pins_data = Option::None;
+
+    loop {
+        let new_pins_data = PinsData {
+            wireless: gpio_handle_wireless.get_value().unwrap() == 1u8,
+            weapon: gpio_handle_weapon_0.get_value().unwrap() * 2
+                + gpio_handle_weapon_1.get_value().unwrap(),
+            weapon_select_btn: gpio_handle_weapon_btn.get_value().unwrap() == 1u8,
+        };
+
+        if let Some(value) = old_pins_data {
+            if value != new_pins_data {
+                println!("{:?}", new_pins_data);
+                tx.send(InputData::PinsData(new_pins_data.clone())).unwrap();
+            }
+        } else {
+            println!("{:?}", new_pins_data);
+            tx.send(InputData::PinsData(new_pins_data.clone())).unwrap();
+        }
+
+        old_pins_data = Some(new_pins_data);
+
+        thread::sleep(Duration::from_millis(10));
+    }
 
     // // Get event handles for each line to monitor.
     // let mut evt_handles: Vec<LineEventHandle> = watched_lines
