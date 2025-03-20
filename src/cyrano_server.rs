@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::match_info;
 use crate::modules::{self, VirtuosoModule};
+use crate::virtuoso_config::VirtuosoConfig;
 
 enum Protocol {
     UNKNOWN,
@@ -35,7 +36,7 @@ struct FencerInfo {
     id: String,     //8
     name: String,   // 20
     nation: String, // 3
-    score: u16,
+    score: u32,
     status: u8,
     yellow_card: u8,
     red_card: u8,
@@ -137,6 +138,7 @@ impl FencerInfo {
 pub struct CyranoServer {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
     match_info_modified_count: u32,
+    config: Arc<Mutex<VirtuosoConfig>>,
 
     udp_socket: UdpSocket,
 
@@ -191,7 +193,7 @@ impl VirtuosoModule for CyranoServer {
             }
 
             let data_updated: bool;
-            
+
             {
                 let match_info_data = self.match_info.lock().unwrap();
                 data_updated = self.match_info_modified_count != match_info_data.modified_count;
@@ -207,12 +209,14 @@ impl VirtuosoModule for CyranoServer {
                     let mut match_info_data = self.match_info.lock().unwrap();
                     self.online = false;
                     match_info_data.cyrano_online = false;
+                    match_info_data.modified_count += 1;
                 } else if Instant::now().duration_since(last_hello).as_secs() <= 15
                     && self.online == false
                 {
                     let mut match_info_data = self.match_info.lock().unwrap();
                     self.online = true;
                     match_info_data.cyrano_online = true;
+                    match_info_data.modified_count += 1;
                 }
             }
 
@@ -226,16 +230,19 @@ impl VirtuosoModule for CyranoServer {
 }
 
 impl CyranoServer {
-    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, udp_port: Option<u16>) -> Self {
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, config: Arc<Mutex<VirtuosoConfig>>) -> Self {
+        let port: u16 = config.lock().unwrap().cyrano_server.cyrano_port;
         Self {
             match_info: match_info,
             match_info_modified_count: 0,
+
+            config: config,
 
             state: State::Waiting,
 
             udp_socket: UdpSocket::bind(SocketAddr::from((
                 [0, 0, 0, 0],
-                udp_port.unwrap_or(50100),
+                port,
             )))
             .expect("couldn't bind udp socket to address"),
 
@@ -247,20 +254,25 @@ impl CyranoServer {
 
             online: false,
 
-
             left_fencer: FencerInfo::new(),
             right_fencer: FencerInfo::new(),
         }
     }
 
-    fn send_full_info(&self) {
+    fn send_full_info(&mut self) {
         let match_info_data = self.match_info.lock().unwrap();
+        
+        self.left_fencer.score = match_info_data.left_score;
+        self.right_fencer.score = match_info_data.right_score;
+
         let buf = format!(
             "|{}|INFO|7|aboba|2|7|8|2||{}||{}|{}|E||||%{}%{}",
             self.protocol.to_string(),
             match_info_data.timer,
             match_info_data.weapon,
             match_info_data.priority,
+
+
             match self.protocol {
                 Protocol::UNKNOWN => String::from(""),
                 Protocol::CYRANO1_0 => self.right_fencer.to_1_0_string(),

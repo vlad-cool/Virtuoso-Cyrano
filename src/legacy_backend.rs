@@ -1,6 +1,5 @@
 #[allow(dead_code)]
 #[allow(unused_variables)]
-
 use gpio_cdev;
 use serial::{self, SerialPort};
 use std::sync::mpsc::RecvError;
@@ -10,11 +9,21 @@ use std::thread;
 use std::time::Duration;
 use std::{io::Read, sync::mpsc};
 
+/*
+TODO Passive counter / indicator
+TODO Auto statuses
+TODO Leds
+*/
+
 use crate::match_info;
 use crate::modules;
+use crate::virtuoso_config::VirtuosoConfig;
 
 pub struct LegacyBackend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
+    config: Arc<Mutex<VirtuosoConfig>>,
+    weapon_select_btn_pressed: bool,
+    rc5_address: u32,
 }
 
 // impl modules::VirtuosoModule for LegacyBackend {
@@ -49,6 +58,7 @@ impl LegacyBackend {
 
                         match_info_data.left_score = msg.score_left;
                         match_info_data.right_score = msg.score_right;
+                        match_info_data.timer_running = msg.on_timer;
 
                         if msg.symbol {
                         } else {
@@ -75,8 +85,80 @@ impl LegacyBackend {
                                 match_info::Priority::None => match_info::Priority::None,
                             },
                         };
+
+                        match_info_data.left_caution = msg.yellow_card_left || msg.red_card_left;
+                        match_info_data.left_penalty = msg.red_card_left;
+                        match_info_data.right_caution = msg.yellow_card_right || msg.red_card_right;
+                        match_info_data.right_penalty = msg.red_card_right;
+
+                        match_info_data.modified_count += 1;
                     }
-                    _ => todo!(),
+                    InputData::PinsData(msg) => {
+                        println!("{:?}", msg);
+                        let mut match_info_data = self.match_info.lock().unwrap();
+
+                        match_info_data.weapon = match msg.weapon {
+                            3 => match_info::Weapon::Epee,
+                            1 => match_info::Weapon::Sabre,
+                            2 => match_info::Weapon::Fleuret,
+                            _ => match_info::Weapon::Unknown,
+                        };
+
+                        match_info_data.modified_count += 1;
+
+                        self.weapon_select_btn_pressed = msg.weapon_select_btn;
+                    }
+                    InputData::IrCommand(msg) => {
+                        if self.weapon_select_btn_pressed
+                            && msg.address != self.rc5_address
+                            && msg.command == IrCommands::SetTime
+                        {
+                            self.rc5_address = msg.address;
+                            let mut config = self.config.lock().unwrap();
+                            config.legacy_backend.rc5_address = msg.address;
+                            config.write_config(None);
+                        } else if msg.new && msg.address == self.rc5_address {
+                            match msg.command {
+                                IrCommands::LeftPassiveCard => {
+                                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                                    (
+                                        match_info_data.left_pcard_bot,
+                                        match_info_data.left_pcard_top,
+                                    ) = match (
+                                        match_info_data.left_pcard_bot,
+                                        match_info_data.left_pcard_top,
+                                    ) {
+                                        (false, false) => (true, false),
+                                        (true, false) => (true, true),
+                                        (false, true) => (true, true),
+                                        (true, true) => (false, false),
+                                    };
+
+                                    match_info_data.modified_count += 1;
+                                }
+                                IrCommands::RightPassiveCard => {
+                                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                                    (
+                                        match_info_data.right_pcard_bot,
+                                        match_info_data.right_pcard_top,
+                                    ) = match (
+                                        match_info_data.right_pcard_bot,
+                                        match_info_data.right_pcard_top,
+                                    ) {
+                                        (false, false) => (true, false),
+                                        (true, false) => (true, true),
+                                        (false, true) => (true, true),
+                                        (true, true) => (false, false),
+                                    };
+
+                                    match_info_data.modified_count += 1;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                 },
             }
             // match pins_data_rx.recv() {
@@ -88,8 +170,14 @@ impl LegacyBackend {
 }
 
 impl LegacyBackend {
-    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>) -> Self {
-        Self { match_info }
+    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, config: Arc<Mutex<VirtuosoConfig>>) -> Self {
+        let rc5_address: u32 = config.lock().unwrap().legacy_backend.rc5_address;
+        Self {
+            match_info,
+            config,
+            weapon_select_btn_pressed: false,
+            rc5_address,
+        }
     }
 }
 
@@ -118,8 +206,10 @@ struct UartData {
     score_right: u32,
     period: u32,
 
-    yellow_card_left: u32,
-    yellow_card_right: u32,
+    yellow_card_left: bool,
+    red_card_left: bool,
+    yellow_card_right: bool,
+    red_card_right: bool,
 }
 
 impl UartData {
@@ -145,8 +235,10 @@ impl UartData {
 
             period: (src[6] & 0b00001111) as u32,
 
-            yellow_card_left: (src[7] >> 2 & 0b00000011) as u32,
-            yellow_card_right: (src[7] >> 0 & 0b00000011) as u32,
+            yellow_card_left:  (src[7] >> 2 & 0b00000001) == 1,
+            red_card_left:     (src[7] >> 3 & 0b00000001) == 1,
+            yellow_card_right: (src[7] >> 0 & 0b00000001) == 1,
+            red_card_right:    (src[7] >> 1 & 0b00000001) == 1,
         }
     }
 }
@@ -192,16 +284,15 @@ fn uart_handler(tx: mpsc::Sender<InputData>) {
     }
 }
 
-#[derive(Debug)]
-#[derive(PartialEq)]
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct PinsData {
-    wireless: bool, // pin 7
+    // wireless: bool, // pin 7
     // recording: bool,         // pin 18
     weapon: u8,              // pin 32 * 2 + pin 36
     weapon_select_btn: bool, // pin 37
 }
 
+#[derive(Debug, PartialEq)]
 enum IrCommands {
     TimerStartStop,
 
@@ -274,6 +365,7 @@ impl IrCommands {
     }
 }
 
+#[derive(Debug)]
 struct IrFrame {
     new: bool,
     address: u32,
@@ -375,7 +467,8 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
                     new: toggle_bit != last_toggle_value,
                     address: address as u32,
                     command: IrCommands::from_int(command as u32),
-                })).unwrap();
+                }))
+                .unwrap();
 
                 last_toggle_value = toggle_bit;
 
@@ -442,19 +535,13 @@ fn pins_handler(tx: mpsc::Sender<InputData>) {
 
     loop {
         let new_pins_data = PinsData {
-            wireless: gpio_handle_wireless.get_value().unwrap() == 1u8,
             weapon: gpio_handle_weapon_0.get_value().unwrap() * 2
                 + gpio_handle_weapon_1.get_value().unwrap(),
-            weapon_select_btn: gpio_handle_weapon_btn.get_value().unwrap() == 1u8,
+            weapon_select_btn: gpio_handle_weapon_btn.get_value().unwrap() == 0u8,
         };
 
-        if let Some(value) = old_pins_data {
-            if value != new_pins_data {
-                println!("{:?}", new_pins_data);
-                tx.send(InputData::PinsData(new_pins_data.clone())).unwrap();
-            }
-        } else {
-            println!("{:?}", new_pins_data);
+        if old_pins_data.as_ref() != Some(&new_pins_data) {
+            // println!("{:?}", new_pins_data);
             tx.send(InputData::PinsData(new_pins_data.clone())).unwrap();
         }
 
@@ -462,49 +549,4 @@ fn pins_handler(tx: mpsc::Sender<InputData>) {
 
         thread::sleep(Duration::from_millis(10));
     }
-
-    // // Get event handles for each line to monitor.
-    // let mut evt_handles: Vec<LineEventHandle> = watched_lines
-    //     .into_iter()
-    //     .map(|off| {
-    //         let line = chips[off.chip].get_line(off.line).unwrap();
-    //         line.events(
-    //             LineRequestFlags::INPUT,
-    //             EventRequestFlags::BOTH_EDGES,
-    //             "monitor",
-    //         )
-    //         .unwrap()
-    //     })
-    //     .collect();
-
-    // let ownedfd: Vec<OwnedFd> = evt_handles
-    //     .iter()
-    //     .map(|h| unsafe { OwnedFd::from_raw_fd(h.as_raw_fd()) })
-    //     .collect();
-
-    // let mut pollfds: Vec<PollFd> = ownedfd
-    //     .iter()
-    //     .map(|fd| PollFd::new(fd, gpio_cdev::PollEventFlags::POLLIN | gpio_cdev::PollEventFlags::POLLPRI))
-    //     .collect();
-
-    // loop {
-    //     if poll(&mut pollfds, -1)? == 0 {
-    //         println!("Timeout?!?");
-    //     } else {
-    //         for i in 0..pollfds.len() {
-    //             if let Some(revts) = pollfds[i].revents() {
-    //                 let h = &mut evt_handles[i];
-    //                 if revts.contains(gpio_cdev::PollEventFlags::POLLIN) {
-    //                     let event = h.get_event().unwrap();
-    //                     println!("[{}] {:?}", h.line().offset(), event);
-
-    //                     let val = h.get_value().unwrap();
-    //                     println!("    {}", val);
-    //                 } else if revts.contains(gpio_cdev::PollEventFlags::POLLPRI) {
-    //                     println!("[{}] Got a POLLPRI", h.line().offset());
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 }
