@@ -24,6 +24,7 @@ pub struct LegacyBackend {
     config: Arc<Mutex<VirtuosoConfig>>,
     weapon_select_btn_pressed: bool,
     rc5_address: u32,
+    auto_status_controller: AutoStatusController,
 }
 
 // impl modules::VirtuosoModule for LegacyBackend {
@@ -51,7 +52,9 @@ impl LegacyBackend {
 
         loop {
             match rx.recv() {
-                Err(RecvError) => {}
+                Err(RecvError) => {
+                    println!("Got Err")
+                }
                 Ok(msg) => match msg {
                     InputData::UartData(msg) => {
                         let mut match_info_data = self.match_info.lock().unwrap();
@@ -61,6 +64,34 @@ impl LegacyBackend {
                         match_info_data.timer_running = msg.on_timer;
 
                         if msg.symbol {
+                            let symbol = msg.dec_seconds * 16 + msg.seconds;
+
+                            let (modified_field, new_state) =
+                                self.auto_status_controller.set_state(match symbol {
+                                    17 => AutoStatusStates::Off,
+                                    196 => AutoStatusStates::On,
+                                    _ => AutoStatusStates::Unknown,
+                                });
+
+                            if modified_field != AutoStatusFields::Unknown
+                                && new_state != AutoStatusStates::Unknown
+                            {
+                                match modified_field {
+                                    AutoStatusFields::Timer => {
+                                        match_info_data.auto_timer_on = new_state.to_bool()
+                                    }
+                                    AutoStatusFields::Score => {
+                                        match_info_data.auto_score_on = new_state.to_bool()
+                                    }
+                                    _ => {}
+                                }
+                            }
+
+                            match symbol {
+                                17 => println!("Got off"),
+                                196 => println!("Got on"),
+                                _ => println!("Got Unknown ({})", symbol),
+                            };
                         } else {
                             match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
                                 4
@@ -94,7 +125,7 @@ impl LegacyBackend {
                         match_info_data.modified_count += 1;
                     }
                     InputData::PinsData(msg) => {
-                        println!("{:?}", msg);
+                        // println!("{:?}", msg);
                         let mut match_info_data = self.match_info.lock().unwrap();
 
                         match_info_data.weapon = match msg.weapon {
@@ -155,6 +186,52 @@ impl LegacyBackend {
 
                                     match_info_data.modified_count += 1;
                                 }
+                                IrCommands::AutoScoreOnOff => {
+                                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                                    let (modified_field, new_state) = self
+                                        .auto_status_controller
+                                        .set_field(AutoStatusFields::Score);
+
+                                    if modified_field != AutoStatusFields::Unknown
+                                        && new_state != AutoStatusStates::Unknown
+                                    {
+                                        match modified_field {
+                                            AutoStatusFields::Timer => {
+                                                match_info_data.auto_timer_on = new_state.to_bool()
+                                            }
+                                            AutoStatusFields::Score => {
+                                                match_info_data.auto_score_on = new_state.to_bool()
+                                            }
+                                            _ => {}
+                                        }
+                                    };
+                                    
+                                    match_info_data.modified_count += 1;
+                                }
+                                IrCommands::AutoTimerOnOff => {
+                                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                                    let (modified_field, new_state) = self
+                                        .auto_status_controller
+                                        .set_field(AutoStatusFields::Timer);
+
+                                    if modified_field != AutoStatusFields::Unknown
+                                        && new_state != AutoStatusStates::Unknown
+                                    {
+                                        match modified_field {
+                                            AutoStatusFields::Timer => {
+                                                match_info_data.auto_timer_on = new_state.to_bool()
+                                            }
+                                            AutoStatusFields::Score => {
+                                                match_info_data.auto_score_on = new_state.to_bool()
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+
+                                    match_info_data.modified_count += 1;
+                                }
                                 _ => {}
                             }
                         }
@@ -170,13 +247,111 @@ impl LegacyBackend {
 }
 
 impl LegacyBackend {
-    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, config: Arc<Mutex<VirtuosoConfig>>) -> Self {
+    pub fn new(
+        match_info: Arc<Mutex<match_info::MatchInfo>>,
+        config: Arc<Mutex<VirtuosoConfig>>,
+    ) -> Self {
         let rc5_address: u32 = config.lock().unwrap().legacy_backend.rc5_address;
         Self {
-            match_info,
+            match_info: Arc::clone(&match_info),
             config,
             weapon_select_btn_pressed: false,
             rc5_address,
+            auto_status_controller: AutoStatusController::new(),
+        }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+enum AutoStatusFields {
+    Timer,
+    Score,
+    Unknown,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+enum AutoStatusStates {
+    On,
+    Off,
+    Unknown,
+}
+impl AutoStatusStates {
+    pub fn to_bool(&self) -> bool {
+        match self {
+            AutoStatusStates::On => true,
+            AutoStatusStates::Off => false,
+            AutoStatusStates::Unknown => false,
+        }
+    }
+}
+
+struct AutoStatusController {
+    new_state: AutoStatusStates,
+    modified_field: AutoStatusFields,
+
+    previous_setting_state: std::time::Instant,
+    previous_setting_field: std::time::Instant,
+}
+
+impl AutoStatusController {
+    pub fn new() -> Self {
+        Self {
+            new_state: AutoStatusStates::Unknown,
+            modified_field: AutoStatusFields::Unknown,
+
+            previous_setting_state: std::time::Instant::now(),
+            previous_setting_field: std::time::Instant::now(),
+        }
+    }
+
+    fn set_new_status(&mut self) -> (AutoStatusFields, AutoStatusStates) {
+        // let mut match_info_data = self.match_info.lock().unwrap();
+
+        // match self.modified_field {
+        //     AutoStatusFields::Timer => match_info_data.auto_timer_on = self.new_state.to_bool(),
+        //     AutoStatusFields::Score => match_info_data.auto_score_on = self.new_state.to_bool(),
+        //     _ => {}
+        // };
+
+        let ret_val = (self.modified_field.clone(), self.new_state.clone());
+
+        println!("{:?} - {:?}", self.modified_field, self.new_state);
+
+        self.new_state = AutoStatusStates::Unknown;
+        self.modified_field = AutoStatusFields::Unknown;
+
+        ret_val
+    }
+
+    pub fn set_state(
+        &mut self,
+        new_state: AutoStatusStates,
+    ) -> (AutoStatusFields, AutoStatusStates) {
+        self.new_state = new_state;
+        self.previous_setting_state = std::time::Instant::now();
+        if self.new_state != AutoStatusStates::Unknown
+            && self.modified_field != AutoStatusFields::Unknown
+            && self.previous_setting_field.elapsed().as_millis() < 1000
+        {
+            return self.set_new_status();
+        } else {
+            return (AutoStatusFields::Unknown, AutoStatusStates::Unknown);
+        }
+    }
+
+    pub fn set_field(
+        &mut self,
+        modified_field: AutoStatusFields,
+    ) -> (AutoStatusFields, AutoStatusStates) {
+        self.modified_field = modified_field;
+        self.previous_setting_field = std::time::Instant::now();
+        if self.new_state != AutoStatusStates::Unknown
+            && self.modified_field != AutoStatusFields::Unknown
+            && self.previous_setting_state.elapsed().as_millis() < 1000
+        {
+            return self.set_new_status();
+        } else {
+            return (AutoStatusFields::Unknown, AutoStatusStates::Unknown);
         }
     }
 }
@@ -235,10 +410,10 @@ impl UartData {
 
             period: (src[6] & 0b00001111) as u32,
 
-            yellow_card_left:  (src[7] >> 2 & 0b00000001) == 1,
-            red_card_left:     (src[7] >> 3 & 0b00000001) == 1,
+            yellow_card_left: (src[7] >> 2 & 0b00000001) == 1,
+            red_card_left: (src[7] >> 3 & 0b00000001) == 1,
             yellow_card_right: (src[7] >> 0 & 0b00000001) == 1,
-            red_card_right:    (src[7] >> 1 & 0b00000001) == 1,
+            red_card_right: (src[7] >> 1 & 0b00000001) == 1,
         }
     }
 }
@@ -264,6 +439,7 @@ fn uart_handler(tx: mpsc::Sender<InputData>) {
         match byte {
             Err(_) => {}
             Ok(byte_val) => {
+                println!("Got byte {:#010b}", byte_val);
                 if byte_val >> 5 == 0 {
                     ind = 0;
                 }
@@ -274,6 +450,8 @@ fn uart_handler(tx: mpsc::Sender<InputData>) {
 
                     if ind == 8 {
                         ind = 0;
+
+                        println!("Sending data from uart_handler");
 
                         tx.send(InputData::UartData(UartData::from_8bytes(buf)))
                             .unwrap();
@@ -382,9 +560,7 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
     let line = crate::gpio::get_pin_by_phys_number(3).unwrap();
     let mut chip = gpio_cdev::Chip::new(format!("/dev/gpiochip{}", line.chip)).unwrap();
 
-    let mut last_interrupt_time: u64;
-
-    last_interrupt_time = 0;
+    let mut last_interrupt_time: u64 = 0u64;
 
     let mut recieve_buf: [i32; 28] = [0; 28];
     let mut index = 0;
@@ -456,13 +632,6 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
                     command += rc5_frame[i];
                 }
 
-                println!(
-                    "New: {}, Address: {}, Command: {}",
-                    toggle_bit != last_toggle_value,
-                    address,
-                    command
-                );
-
                 tx.send(InputData::IrCommand(IrFrame {
                     new: toggle_bit != last_toggle_value,
                     address: address as u32,
@@ -491,14 +660,6 @@ fn pins_handler(tx: mpsc::Sender<InputData>) {
             println!("Failed to open chip {}", path);
         }
     }
-
-    // let watched_lines = vec![[
-    //     crate::gpio::get_pin_by_phys_number(7),
-    //     crate::gpio::get_pin_by_phys_number(27),
-    //     crate::gpio::get_pin_by_phys_number(32),
-    //     crate::gpio::get_pin_by_phys_number(36),
-    //     crate::gpio::get_pin_by_phys_number(37),
-    // ]];
 
     let gpio_pin_wireless = crate::gpio::get_pin_by_phys_number(7).unwrap();
     let gpio_line_wireless = chips[gpio_pin_wireless.chip as usize]
@@ -541,7 +702,6 @@ fn pins_handler(tx: mpsc::Sender<InputData>) {
         };
 
         if old_pins_data.as_ref() != Some(&new_pins_data) {
-            // println!("{:?}", new_pins_data);
             tx.send(InputData::PinsData(new_pins_data.clone())).unwrap();
         }
 

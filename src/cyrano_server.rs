@@ -161,7 +161,7 @@ impl VirtuosoModule for CyranoServer {
             .expect("Failed to set udp socket nonblocking");
 
         loop {
-            let mut buf = [0u8; 512];
+            let mut buf: [u8; 512] = [0u8; 512];
             match self.udp_socket.recv_from(&mut buf) {
                 Ok((size, src_addr)) => {
                     println!("Got {}", String::from_utf8(buf[0..size].to_vec()).unwrap());
@@ -183,7 +183,6 @@ impl VirtuosoModule for CyranoServer {
                     match parts[2] {
                         "HELLO" => {
                             self.last_hello = Some(Instant::now());
-
                             self.send_full_info();
                         }
                         _ => {}
@@ -193,7 +192,7 @@ impl VirtuosoModule for CyranoServer {
             }
 
             let data_updated: bool;
-
+            
             {
                 let match_info_data = self.match_info.lock().unwrap();
                 data_updated = self.match_info_modified_count != match_info_data.modified_count;
