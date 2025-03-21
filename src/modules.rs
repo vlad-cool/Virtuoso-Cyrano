@@ -1,5 +1,4 @@
-#[derive(Clone)]
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Modules {
     CyranoServer,
     ConsoleBackend,

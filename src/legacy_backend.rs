@@ -125,7 +125,6 @@ impl LegacyBackend {
                         match_info_data.modified_count += 1;
                     }
                     InputData::PinsData(msg) => {
-                        // println!("{:?}", msg);
                         let mut match_info_data = self.match_info.lock().unwrap();
 
                         match_info_data.weapon = match msg.weapon {
@@ -206,7 +205,7 @@ impl LegacyBackend {
                                             _ => {}
                                         }
                                     };
-                                    
+
                                     match_info_data.modified_count += 1;
                                 }
                                 IrCommands::AutoTimerOnOff => {
@@ -238,10 +237,6 @@ impl LegacyBackend {
                     }
                 },
             }
-            // match pins_data_rx.recv() {
-            //     Err(RecvError) => {}
-            //     Ok => {}
-            // }
         }
     }
 }

@@ -38,21 +38,22 @@ fn main() {
     // // config.write_config(None);
 
     let match_info: Arc<Mutex<MatchInfo>> = Arc::new(Mutex::new(MatchInfo::new()));
-    let config: Arc<Mutex<VirtuosoConfig>> = Arc::new(Mutex::new(
-        VirtuosoConfig::load_config(None),
-    ));
+    let config: Arc<Mutex<VirtuosoConfig>> =
+        Arc::new(Mutex::new(VirtuosoConfig::load_config(None)));
 
     #[cfg(feature = "console_backend")]
     let mut console_backend = console_backend::ConsoleBackend::new(Arc::clone(&match_info));
 
     #[cfg(feature = "legacy_backend")]
-    let mut legacy_backend = legacy_backend::LegacyBackend::new(Arc::clone(&match_info), Arc::clone(&config));
+    let mut legacy_backend =
+        legacy_backend::LegacyBackend::new(Arc::clone(&match_info), Arc::clone(&config));
 
     #[cfg(feature = "slint_frontend")]
     let mut slint_frontend = slint_frontend::SlintFrontend::new(Arc::clone(&match_info));
 
     #[cfg(feature = "cyrano_server")]
-    let mut cyrano_server = cyrano_server::CyranoServer::new(Arc::clone(&match_info), Arc::clone(&config));
+    let mut cyrano_server =
+        cyrano_server::CyranoServer::new(Arc::clone(&match_info), Arc::clone(&config));
 
     #[cfg(feature = "console_backend")]
     let console_backend_thread = thread::spawn(move || {

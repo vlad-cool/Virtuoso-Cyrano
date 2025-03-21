@@ -12,23 +12,23 @@ impl VirtuosoConfig {
 
     pub fn load_config(path: Option<String>) -> VirtuosoConfig {
         let mut loaded = true;
-        let config = match std::fs::read_to_string(path.clone().unwrap_or(String::from(Self::DEFAULT_PATH))) {
-            Ok(content) => match toml::from_str(&content) {
-                Ok(config) => {
-                    config
+        let config =
+            match std::fs::read_to_string(path.clone().unwrap_or(String::from(Self::DEFAULT_PATH)))
+            {
+                Ok(content) => match toml::from_str(&content) {
+                    Ok(config) => config,
+                    Err(err) => {
+                        eprintln!("Error parsing config.toml: {}", err);
+                        loaded = false;
+                        VirtuosoConfig::default()
+                    }
                 },
                 Err(err) => {
-                    eprintln!("Error parsing config.toml: {}", err);
+                    eprintln!("Error reading config.toml: {}", err);
                     loaded = false;
                     VirtuosoConfig::default()
                 }
-            },
-            Err(err) => {
-                eprintln!("Error reading config.toml: {}", err);
-                loaded = false;
-                VirtuosoConfig::default()
-            }
-        };
+            };
 
         if !loaded {
             config.write_config(path);

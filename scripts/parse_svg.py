@@ -87,7 +87,7 @@ with open("src/layouts.rs", "w") as f:
     f.write('// Genetated file\n')
     f.write('slint::slint!(export { Virtuoso } from "src/slint/main.slint";);\n')
     f.write('\n')
-    f.write('pub const LAYOUT_1920X480 : Layout = Layout {\n')
+    f.write('pub const LAYOUT_1920X480: Layout = Layout {\n')
     for key, element in elements.items():
         if element.name == "Rectangle":
             continue

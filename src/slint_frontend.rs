@@ -26,10 +26,10 @@ impl modules::VirtuosoModule for SlintFrontend {
 
         let weak_app_1 = app.as_weak();
         let weak_app_2 = app.as_weak();
-        
+
         let match_info_clone = self.match_info.clone();
         let mut match_info_modified_count = 0u32;
-        
+
         let timer = Timer::default();
         timer.start(
             TimerMode::Repeated,

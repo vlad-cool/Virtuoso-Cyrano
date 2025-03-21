@@ -1,7 +1,7 @@
 // Genetated file
 slint::slint!(export { Virtuoso } from "src/slint/main.slint";);
 
-pub const LAYOUT_1920X480 : Layout = Layout {
+pub const LAYOUT_1920X480: Layout = Layout {
     background: RectangleProperties {
         x: 0,
         y: 0,

@@ -192,7 +192,7 @@ impl VirtuosoModule for CyranoServer {
             }
 
             let data_updated: bool;
-            
+
             {
                 let match_info_data = self.match_info.lock().unwrap();
                 data_updated = self.match_info_modified_count != match_info_data.modified_count;
@@ -229,7 +229,10 @@ impl VirtuosoModule for CyranoServer {
 }
 
 impl CyranoServer {
-    pub fn new(match_info: Arc<Mutex<match_info::MatchInfo>>, config: Arc<Mutex<VirtuosoConfig>>) -> Self {
+    pub fn new(
+        match_info: Arc<Mutex<match_info::MatchInfo>>,
+        config: Arc<Mutex<VirtuosoConfig>>,
+    ) -> Self {
         let port: u16 = config.lock().unwrap().cyrano_server.cyrano_port;
         Self {
             match_info: match_info,
@@ -239,11 +242,8 @@ impl CyranoServer {
 
             state: State::Waiting,
 
-            udp_socket: UdpSocket::bind(SocketAddr::from((
-                [0, 0, 0, 0],
-                port,
-            )))
-            .expect("couldn't bind udp socket to address"),
+            udp_socket: UdpSocket::bind(SocketAddr::from(([0, 0, 0, 0], port)))
+                .expect("couldn't bind udp socket to address"),
 
             protocol: Protocol::UNKNOWN,
 
@@ -260,7 +260,7 @@ impl CyranoServer {
 
     fn send_full_info(&mut self) {
         let match_info_data = self.match_info.lock().unwrap();
-        
+
         self.left_fencer.score = match_info_data.left_score;
         self.right_fencer.score = match_info_data.right_score;
 
@@ -270,8 +270,6 @@ impl CyranoServer {
             match_info_data.timer,
             match_info_data.weapon,
             match_info_data.priority,
-
-
             match self.protocol {
                 Protocol::UNKNOWN => String::from(""),
                 Protocol::CYRANO1_0 => self.right_fencer.to_1_0_string(),

@@ -1,5 +1,4 @@
-#[derive(PartialEq)]
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Priority {
     Left,
     None,
@@ -16,8 +15,7 @@ impl std::fmt::Display for Priority {
     }
 }
 
-#[derive(PartialEq)]
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Weapon {
     Unknown,
     Epee,
