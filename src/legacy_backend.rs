@@ -19,6 +19,8 @@ use crate::match_info;
 use crate::modules;
 use crate::virtuoso_config::VirtuosoConfig;
 
+const AUTO_STATUS_WAIT_THRESHOLD: std::time::Duration = std::time::Duration::from_millis(200);
+
 pub struct LegacyBackend {
     match_info: Arc<Mutex<match_info::MatchInfo>>,
     config: Arc<Mutex<VirtuosoConfig>>,
@@ -52,188 +54,16 @@ impl LegacyBackend {
 
         loop {
             match rx.recv() {
-                Err(RecvError) => {
-                    println!("Got Err")
-                }
+                Err(RecvError) => {}
                 Ok(msg) => match msg {
                     InputData::UartData(msg) => {
-                        let mut match_info_data = self.match_info.lock().unwrap();
-
-                        match_info_data.left_score = msg.score_left;
-                        match_info_data.right_score = msg.score_right;
-                        match_info_data.timer_running = msg.on_timer;
-
-                        if msg.symbol {
-                            let symbol = msg.dec_seconds * 16 + msg.seconds;
-
-                            let (modified_field, new_state) =
-                                self.auto_status_controller.set_state(match symbol {
-                                    17 => AutoStatusStates::Off,
-                                    196 => AutoStatusStates::On,
-                                    _ => AutoStatusStates::Unknown,
-                                });
-
-                            if modified_field != AutoStatusFields::Unknown
-                                && new_state != AutoStatusStates::Unknown
-                            {
-                                match modified_field {
-                                    AutoStatusFields::Timer => {
-                                        match_info_data.auto_timer_on = new_state.to_bool()
-                                    }
-                                    AutoStatusFields::Score => {
-                                        match_info_data.auto_score_on = new_state.to_bool()
-                                    }
-                                    _ => {}
-                                }
-                            }
-
-                            match symbol {
-                                17 => println!("Got off"),
-                                196 => println!("Got on"),
-                                _ => println!("Got Unknown ({})", symbol),
-                            };
-                        } else {
-                            match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
-                                4
-                            } else {
-                                msg.minutes
-                            } * 100
-                                + msg.dec_seconds * 10
-                                + msg.seconds;
-                        }
-                        match_info_data.period = if msg.period > 0 && msg.period < 10 {
-                            msg.period
-                        } else {
-                            match_info_data.period
-                        };
-                        match_info_data.priority = match msg.period {
-                            0b1110 => match_info::Priority::Right,
-                            0b1111 => match_info::Priority::Left,
-                            0b1011 => match_info::Priority::None,
-                            _ => match match_info_data.priority {
-                                match_info::Priority::Right => match_info::Priority::Right,
-                                match_info::Priority::Left => match_info::Priority::Left,
-                                match_info::Priority::None => match_info::Priority::None,
-                            },
-                        };
-
-                        match_info_data.left_caution = msg.yellow_card_left || msg.red_card_left;
-                        match_info_data.left_penalty = msg.red_card_left;
-                        match_info_data.right_caution = msg.yellow_card_right || msg.red_card_right;
-                        match_info_data.right_penalty = msg.red_card_right;
-
-                        match_info_data.modified_count += 1;
+                        self.apply_uart_data(msg);
                     }
                     InputData::PinsData(msg) => {
-                        let mut match_info_data = self.match_info.lock().unwrap();
-
-                        match_info_data.weapon = match msg.weapon {
-                            3 => match_info::Weapon::Epee,
-                            1 => match_info::Weapon::Sabre,
-                            2 => match_info::Weapon::Fleuret,
-                            _ => match_info::Weapon::Unknown,
-                        };
-
-                        match_info_data.modified_count += 1;
-
-                        self.weapon_select_btn_pressed = msg.weapon_select_btn;
+                        self.apply_pins_data(msg);
                     }
                     InputData::IrCommand(msg) => {
-                        if self.weapon_select_btn_pressed
-                            && msg.address != self.rc5_address
-                            && msg.command == IrCommands::SetTime
-                        {
-                            self.rc5_address = msg.address;
-                            let mut config = self.config.lock().unwrap();
-                            config.legacy_backend.rc5_address = msg.address;
-                            config.write_config(None);
-                        } else if msg.new && msg.address == self.rc5_address {
-                            match msg.command {
-                                IrCommands::LeftPassiveCard => {
-                                    let mut match_info_data = self.match_info.lock().unwrap();
-
-                                    (
-                                        match_info_data.left_pcard_bot,
-                                        match_info_data.left_pcard_top,
-                                    ) = match (
-                                        match_info_data.left_pcard_bot,
-                                        match_info_data.left_pcard_top,
-                                    ) {
-                                        (false, false) => (true, false),
-                                        (true, false) => (true, true),
-                                        (false, true) => (true, true),
-                                        (true, true) => (false, false),
-                                    };
-
-                                    match_info_data.modified_count += 1;
-                                }
-                                IrCommands::RightPassiveCard => {
-                                    let mut match_info_data = self.match_info.lock().unwrap();
-
-                                    (
-                                        match_info_data.right_pcard_bot,
-                                        match_info_data.right_pcard_top,
-                                    ) = match (
-                                        match_info_data.right_pcard_bot,
-                                        match_info_data.right_pcard_top,
-                                    ) {
-                                        (false, false) => (true, false),
-                                        (true, false) => (true, true),
-                                        (false, true) => (true, true),
-                                        (true, true) => (false, false),
-                                    };
-
-                                    match_info_data.modified_count += 1;
-                                }
-                                IrCommands::AutoScoreOnOff => {
-                                    let mut match_info_data = self.match_info.lock().unwrap();
-
-                                    let (modified_field, new_state) = self
-                                        .auto_status_controller
-                                        .set_field(AutoStatusFields::Score);
-
-                                    if modified_field != AutoStatusFields::Unknown
-                                        && new_state != AutoStatusStates::Unknown
-                                    {
-                                        match modified_field {
-                                            AutoStatusFields::Timer => {
-                                                match_info_data.auto_timer_on = new_state.to_bool()
-                                            }
-                                            AutoStatusFields::Score => {
-                                                match_info_data.auto_score_on = new_state.to_bool()
-                                            }
-                                            _ => {}
-                                        }
-                                    };
-
-                                    match_info_data.modified_count += 1;
-                                }
-                                IrCommands::AutoTimerOnOff => {
-                                    let mut match_info_data = self.match_info.lock().unwrap();
-
-                                    let (modified_field, new_state) = self
-                                        .auto_status_controller
-                                        .set_field(AutoStatusFields::Timer);
-
-                                    if modified_field != AutoStatusFields::Unknown
-                                        && new_state != AutoStatusStates::Unknown
-                                    {
-                                        match modified_field {
-                                            AutoStatusFields::Timer => {
-                                                match_info_data.auto_timer_on = new_state.to_bool()
-                                            }
-                                            AutoStatusFields::Score => {
-                                                match_info_data.auto_score_on = new_state.to_bool()
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-
-                                    match_info_data.modified_count += 1;
-                                }
-                                _ => {}
-                            }
-                        }
+                        self.apply_ir_data(msg);
                     }
                 },
             }
@@ -255,6 +85,182 @@ impl LegacyBackend {
             auto_status_controller: AutoStatusController::new(),
         }
     }
+
+    fn apply_uart_data(&mut self, msg: UartData) {
+        let mut match_info_data = self.match_info.lock().unwrap();
+
+        match_info_data.left_score = msg.score_left;
+        match_info_data.right_score = msg.score_right;
+        match_info_data.timer_running = msg.on_timer;
+
+        if msg.symbol {
+            let symbol = msg.dec_seconds * 16 + msg.seconds;
+
+            let (modified_field, new_state) = self.auto_status_controller.set_state(match symbol {
+                17 => AutoStatusStates::Off,
+                196 => AutoStatusStates::On,
+                _ => AutoStatusStates::Unknown,
+            });
+
+            if modified_field != AutoStatusFields::Unknown && new_state != AutoStatusStates::Unknown
+            {
+                match modified_field {
+                    AutoStatusFields::Timer => match_info_data.auto_timer_on = new_state.to_bool(),
+                    AutoStatusFields::Score => match_info_data.auto_score_on = new_state.to_bool(),
+                    _ => {}
+                }
+            }
+
+            match symbol {
+                17 => println!("Got off"),
+                196 => println!("Got on"),
+                _ => println!("Got Unknown ({})", symbol),
+            };
+        } else {
+            match_info_data.timer = if msg.period & 0b00001111 == 0b1100 {
+                4
+            } else {
+                msg.minutes
+            } * 100
+                + msg.dec_seconds * 10
+                + msg.seconds;
+        }
+        match_info_data.period = if msg.period > 0 && msg.period < 10 {
+            msg.period
+        } else {
+            match_info_data.period
+        };
+        match_info_data.priority = match msg.period {
+            0b1110 => match_info::Priority::Right,
+            0b1111 => match_info::Priority::Left,
+            0b1011 => match_info::Priority::None,
+            _ => match match_info_data.priority {
+                match_info::Priority::Right => match_info::Priority::Right,
+                match_info::Priority::Left => match_info::Priority::Left,
+                match_info::Priority::None => match_info::Priority::None,
+            },
+        };
+
+        match_info_data.left_caution = msg.yellow_card_left || msg.red_card_left;
+        match_info_data.left_penalty = msg.red_card_left;
+        match_info_data.right_caution = msg.yellow_card_right || msg.red_card_right;
+        match_info_data.right_penalty = msg.red_card_right;
+
+        match_info_data.modified_count += 1;
+    }
+
+    fn apply_pins_data(&mut self, msg: PinsData) {
+        let mut match_info_data = self.match_info.lock().unwrap();
+
+        match_info_data.weapon = match msg.weapon {
+            3 => match_info::Weapon::Epee,
+            1 => match_info::Weapon::Sabre,
+            2 => match_info::Weapon::Fleuret,
+            _ => match_info::Weapon::Unknown,
+        };
+
+        match_info_data.modified_count += 1;
+
+        self.weapon_select_btn_pressed = msg.weapon_select_btn;
+    }
+
+    fn apply_ir_data(&mut self, msg: IrFrame) {
+        if self.weapon_select_btn_pressed
+            && msg.address != self.rc5_address
+            && msg.command == IrCommands::SetTime
+        {
+            self.rc5_address = msg.address;
+            let mut config = self.config.lock().unwrap();
+            config.legacy_backend.rc5_address = msg.address;
+            config.write_config(None);
+        } else if msg.new && msg.address == self.rc5_address {
+            match msg.command {
+                IrCommands::LeftPassiveCard => {
+                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                    (
+                        match_info_data.left_pcard_bot,
+                        match_info_data.left_pcard_top,
+                    ) = match (
+                        match_info_data.left_pcard_bot,
+                        match_info_data.left_pcard_top,
+                    ) {
+                        (false, false) => (true, false),
+                        (true, false) => (true, true),
+                        (false, true) => (true, true),
+                        (true, true) => (false, false),
+                    };
+
+                    match_info_data.modified_count += 1;
+                }
+                IrCommands::RightPassiveCard => {
+                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                    (
+                        match_info_data.right_pcard_bot,
+                        match_info_data.right_pcard_top,
+                    ) = match (
+                        match_info_data.right_pcard_bot,
+                        match_info_data.right_pcard_top,
+                    ) {
+                        (false, false) => (true, false),
+                        (true, false) => (true, true),
+                        (false, true) => (true, true),
+                        (true, true) => (false, false),
+                    };
+
+                    match_info_data.modified_count += 1;
+                }
+                IrCommands::AutoScoreOnOff => {
+                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                    let (modified_field, new_state) = self
+                        .auto_status_controller
+                        .set_field(AutoStatusFields::Score);
+
+                    if modified_field != AutoStatusFields::Unknown
+                        && new_state != AutoStatusStates::Unknown
+                    {
+                        match modified_field {
+                            AutoStatusFields::Timer => {
+                                match_info_data.auto_timer_on = new_state.to_bool()
+                            }
+                            AutoStatusFields::Score => {
+                                match_info_data.auto_score_on = new_state.to_bool()
+                            }
+                            _ => {}
+                        }
+                    };
+
+                    match_info_data.modified_count += 1;
+                }
+                IrCommands::AutoTimerOnOff => {
+                    let mut match_info_data = self.match_info.lock().unwrap();
+
+                    let (modified_field, new_state) = self
+                        .auto_status_controller
+                        .set_field(AutoStatusFields::Timer);
+
+                    if modified_field != AutoStatusFields::Unknown
+                        && new_state != AutoStatusStates::Unknown
+                    {
+                        match modified_field {
+                            AutoStatusFields::Timer => {
+                                match_info_data.auto_timer_on = new_state.to_bool()
+                            }
+                            AutoStatusFields::Score => {
+                                match_info_data.auto_score_on = new_state.to_bool()
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    match_info_data.modified_count += 1;
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -270,6 +276,7 @@ enum AutoStatusStates {
     Off,
     Unknown,
 }
+
 impl AutoStatusStates {
     pub fn to_bool(&self) -> bool {
         match self {
@@ -299,15 +306,7 @@ impl AutoStatusController {
         }
     }
 
-    fn set_new_status(&mut self) -> (AutoStatusFields, AutoStatusStates) {
-        // let mut match_info_data = self.match_info.lock().unwrap();
-
-        // match self.modified_field {
-        //     AutoStatusFields::Timer => match_info_data.auto_timer_on = self.new_state.to_bool(),
-        //     AutoStatusFields::Score => match_info_data.auto_score_on = self.new_state.to_bool(),
-        //     _ => {}
-        // };
-
+    fn return_new_status(&mut self) -> (AutoStatusFields, AutoStatusStates) {
         let ret_val = (self.modified_field.clone(), self.new_state.clone());
 
         println!("{:?} - {:?}", self.modified_field, self.new_state);
@@ -326,9 +325,9 @@ impl AutoStatusController {
         self.previous_setting_state = std::time::Instant::now();
         if self.new_state != AutoStatusStates::Unknown
             && self.modified_field != AutoStatusFields::Unknown
-            && self.previous_setting_field.elapsed().as_millis() < 1000
+            && self.previous_setting_field.elapsed() < AUTO_STATUS_WAIT_THRESHOLD
         {
-            return self.set_new_status();
+            return self.return_new_status();
         } else {
             return (AutoStatusFields::Unknown, AutoStatusStates::Unknown);
         }
@@ -342,13 +341,19 @@ impl AutoStatusController {
         self.previous_setting_field = std::time::Instant::now();
         if self.new_state != AutoStatusStates::Unknown
             && self.modified_field != AutoStatusFields::Unknown
-            && self.previous_setting_state.elapsed().as_millis() < 1000
+            && self.previous_setting_state.elapsed() < AUTO_STATUS_WAIT_THRESHOLD
         {
-            return self.set_new_status();
+            return self.return_new_status();
         } else {
             return (AutoStatusFields::Unknown, AutoStatusStates::Unknown);
         }
     }
+}
+
+enum InputData {
+    UartData(UartData),
+    PinsData(PinsData),
+    IrCommand(IrFrame),
 }
 
 #[derive(Debug)]
@@ -457,14 +462,6 @@ fn uart_handler(tx: mpsc::Sender<InputData>) {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-struct PinsData {
-    // wireless: bool, // pin 7
-    // recording: bool,         // pin 18
-    weapon: u8,              // pin 32 * 2 + pin 36
-    weapon_select_btn: bool, // pin 37
-}
-
 #[derive(Debug, PartialEq)]
 enum IrCommands {
     TimerStartStop,
@@ -543,12 +540,6 @@ struct IrFrame {
     new: bool,
     address: u32,
     command: IrCommands,
-}
-
-enum InputData {
-    UartData(UartData),
-    PinsData(PinsData),
-    IrCommand(IrFrame),
 }
 
 fn rc5_reciever(tx: mpsc::Sender<InputData>) {
@@ -643,6 +634,12 @@ fn rc5_reciever(tx: mpsc::Sender<InputData>) {
 
         last_interrupt_time = event.timestamp();
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct PinsData {
+    weapon: u8,
+    weapon_select_btn: bool,
 }
 
 fn pins_handler(tx: mpsc::Sender<InputData>) {
