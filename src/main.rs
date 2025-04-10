@@ -64,23 +64,30 @@ fn main() {
     let legacy_backend_thread = thread::spawn(move || {
         legacy_backend.run();
     });
-
-    #[cfg(feature = "slint_frontend")]
-    let slint_frontend_thread = thread::spawn(move || {
-        slint_frontend.run();
-    });
-
+    
     #[cfg(feature = "cyrano_server")]
     let cyrano_server_thread = thread::spawn(move || {
         cyrano_server.run();
+    });
+    
+    
+    #[cfg(feature = "slint_frontend")]
+    #[cfg(target_os = "macos")]
+    slint_frontend.run();
+    
+    #[cfg(feature = "slint_frontend")]
+    #[cfg(not(target_os = "macos"))]
+    let slint_frontend_thread = thread::spawn(move || {
+        slint_frontend.run();
     });
 
     #[cfg(feature = "legacy_backend")]
     legacy_backend_thread.join().unwrap();
 
     #[cfg(feature = "slint_frontend")]
+    #[cfg(not(target_os = "macos"))]
     slint_frontend_thread.join().unwrap();
-
+    
     #[cfg(feature = "console_backend")]
     console_backend_thread.join().unwrap();
 
